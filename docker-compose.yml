@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKERS=4
+  demo:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./demo:/usr/share/nginx/html:ro

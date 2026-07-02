@@ -1,0 +1,1862 @@
+
+--- PAGE 1 ---
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+TRACE: Graph-Aware Anomaly Detection for Trust Routing in
+Adversarial Decentralized Marketplaces
+Anonymous Author(s)
+Abstract
+Decentralized agent marketplaces route paid work to pseudony-
+mous providers. Any trust mechanism balances three pressures:
+bound fraud exposure, stay open to newcomers, and survive co-
+ordinated graph manipulation. We compare four routing policies
+(reputation-only, price-only, EigenTrust, and Trust Routing with Ad-
+versarial Coordination Evidence (TRACE), which combines uncertainty-
+aware evidence weighting with structural coordination detection
+in place of trust propagation) across four attack regimes at N=1,000
+agents with 30% adversaries, ten seeds per cell. Two results drive
+the story. Trust propagation amplifies coordinated attacks: Eigen-
+Trust routes 81.7% of jobs to malicious agents under Sybil attack,
+while reputation-only contains it to 29.0%. Exploration is also costly
+under score-based adversaries. A component ablation shows that
+disabling Thompson sampling in TRACE reduces mean fraud from
+10.7, 46.5, 19.0, and 83.7 sats to 4.7, 6.4, 7.1, and 31.7 sats on strategic-
+default, collusion-ring, sybil-cluster, and game-theoretic-adversary.
+The greedy variant has the lowest fraud on the first three regimes;
+EigenTrust attains lower game-theoretic fraud (4.4) but at 41.2%
+malicious routing rate. A single-seed run at N=5,000 confirms Eigen-
+Trust’s pathology persists at scale, and the propagating versus non-
+propagating ordering replicates on real-world signed-trust graphs
+(Bitcoin Over-The-Counter, Bitcoin Alpha). The findings caution
+against trust propagation in adversarial settings and motivate risk-
+conditioned exploration as a principled extension.
+CCS Concepts
+•Security and privacy → Trust frameworks;Distributed systems
+security;•Human-centered computing→Reputation systems.
+Keywords
+trust routing, adversarial graph robustness, decentralized market-
+places, sybil detection, collusion resistance, coordination detection
+ACM Reference Format:
+Anonymous Author(s). 2026. TRACE: Graph-Aware Anomaly Detection for
+Trust Routing in Adversarial Decentralized Marketplaces. InProceedings
+of 35th ACM International Conference on Information and Knowledge Man-
+agement (CIKM ’26).ACM, New York, NY, USA, 9 pages. https://doi.org/10.
+1145/nnnnnnn.nnnnnnn
+1 Introduction
+When an autonomous software agent pays another agent five
+satoshis to summarize a document, the transaction settles in un-
+der a second over the Lightning Network. Neither party knows
+the other’s real identity. There is no contract, no escrow, no legal
+recourse if the provider takes the payment and returns garbage.
+The routing algorithm-the mechanism that decided which provider
+CIKM ’26, Rome, Italy
+2026. ACM ISBN 978-x-xxxx-xxxx-x/YYYY/MM
+https://doi.org/10.1145/nnnnnnn.nnnnnnn
+received this particular job-bears the entire cost of a wrong choice.
+As agent-to-agent marketplaces grow from dozens to thousands
+of pseudonymous providers, routing stops being a matching prob-
+lem and becomes an adversarial one. Coordinated attackers can
+manufacture trust signals, attract routing, and drain irreversible
+micropayments before anyone notices.
+For two decades, trust propagation was the default remedy. Kam-
+var, Schlosser, and Garcia-Molina [1] built EigenTrust on a simple
+premise: model the P2P rating graph as a Markov chain and take
+each node’s global trust as the stationary distribution. The wa-
+ger is transitivity - Alice trusts Bob, Bob trusts Carol, so Alice
+assigns partial credit to Carol. File sharing had one presiding failure
+mode (free-riding), and EigenTrust addressed it. Resnick et al. [2]
+had shown earlier that pseudonyms and feedback can together
+sustain cooperation; Dellarocas [3] catalogued the failure modes -
+ballot-stuffing, bad-mouthing, and whitewashing by re-registering.
+Manipulation is inexpensive when the settlement exceeds the cost
+of a new identity.
+None of these developments truly prepared the field for the rise
+of agent marketplaces. One attacker can make dozens of identities
+(the Sybil attack, per Douceur [4]), earn trust edges on small, low-
+value jobs, and then switch to stealing real payments. Colluders
+can quietly inflate each other’s ratings for weeks before exploiting
+the inflated scores. Adaptive adversaries check their own standing
+and only cheat when they can tank the reputation hit without
+losing routing share. File-sharing lost you a download; here you
+lose satoshis that you cannot recover.
+Despite two decades of research on distributed trust, no empiri-
+cal evaluation has stressed routing mechanisms under combined
+coordinated attacks at population scale with real payment exposure.
+EigenTrust [1] was validated against non-coordinating free-riders
+in file-sharing topologies where honest nodes held a structural
+majority. SybilGuard and SybilLimit assumed sparse cuts between
+honest and Sybil regions-an assumption that collapses when adver-
+saries can inject edges by completing cheap transactions. Whether
+exploration-exploitation strategies from the multi-armed bandit
+literature help or hurt under adversarial load has remained an open
+question, because standard bandit formulations treat arm quality
+as fixed or stochastically varying, not as strategically adversarial
+with the ability to manufacture trust edges and coordinate across
+identities.
+We address this gap through controlled experiments on TRACE-
+a trust-routing framework we built and deployed as a Lightning-
+powered agent marketplace called SatsRouter. We compare four
+routing policies-reputation-only, price-only, EigenTrust [1], and
+TRACE-across four attack types at N=1,000 agents with 30% ad-
+versaries, running ten independent seeds per experimental cell.
+Two findings anchor the paper. Trust propagation makes things
+worse: EigenTrust routed 81.7% of all jobs to malicious agents under
+Sybil attack, while a simple reputation-weighted policy without any
+1
+--- PAGE 2 ---
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+CIKM ’26, November 2026, Rome, Italy Anon.
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+220
+221
+222
+223
+224
+225
+226
+227
+228
+229
+230
+231
+232
+graph propagation contained the same attack to 29%. The eigen-
+vector concentrates mass on whichever cluster has the densest
+internal edges, and under Sybil attack that cluster belongs to the
+adversary. Exploration also hurt: disabling Thompson sampling
+in TRACE-switching to pure greedy selection-reduced fraud by
+56–86% across all four attack types, because on sparse graphs the
+high-uncertainty providers that Thompson sampling preferentially
+explores are precisely the adversaries who have not yet been caught.
+This exploration-cost effect depends on graph density and ev-
+idence volume. On dense graphs-the Bitcoin Over-The-Counter
+(OTC) network at 1.85% density, the Bitcoin Alpha network at
+1.20%-the greedy advantage disappears for coordinated attacks be-
+cause colluding adversaries already have elevated trust scores from
+pre-existing edges. Under partitioned views where each buyer main-
+tained only local evidence from 60 jobs, greedy selection produced
+6.8× higher fraud than Thompson sampling on strategic-default,
+establishing an exploration-visibility trade-off that bounds the ap-
+plicability of our sparse-topology findings.
+The marketplace substrate is not hypothetical. SatsRouter is a de-
+ployed Lightning-powered agent marketplace where artificial intel-
+ligence agents hire specialist agents and pay per request in satoshis
+(5–20 sats per job). The system routes real micropayments over
+the Lightning Network, with L402 paywalls gating each agent end-
+point. The experimental evaluation uses SatsRouter’s architecture-
+its provider registry, job routing, reputation tracking, and payment
+settlement-as the simulation substrate. The four routing policies are
+implemented as configurable modules within this deployed system.
+The simulation differs from production in two respects: (a) provider
+Behaviour is controlled by attack scripts rather than real Large
+Language Model (LLM) inference, and (b) the trust graph is seeded
+synthetically or from Stanford Network Analysis Project (SNAP)
+datasets rather than growing organically. All other components-
+Bayesian Lower Confidence Bound (LCB) scoring, Cumulative Sum
+(CUSUM) detection, Personalized PageRank (PPR) computation,
+cooldown tracking-run identically in simulation and production.
+Our contributions:
+(1) We show that EigenTrust-style trust propagation [1] fails
+under coordinated attack at 30% adversary ratio, with the
+failure replicating on two real-world Bitcoin trust graphs
+and persisting at N=5,000 (Section 4).
+(2) We identify an exploration-cost effect: Thompson sampling
+is net-negative under adversarial load on sparse graphs
+because adversaries occupy the high-uncertainty tail. We
+isolate this via component ablation at 10 seeds per cell
+(Section 4).
+(3) We characterize the density boundary where this effect
+reverses, confirmed on three independent dense topologies
+at≥1.2% edge density (Section 5).
+(4) We test a Behavioural adversary designed to exploit greedy
+concentration. The exploration-cost finding survives this
+falsification at n=10 (Section 4).
+(5) We document the fraud-openness trade-off that greedy se-
+lection introduces, including two failed recovery attempts
+with mechanistic explanations (Section 7).
+(6) We show that the exploration-cost finding is conditional
+on routing visibility: under partitioned views with local
+evidence, greedy selection produces 6.8× higher fraud than
+Thompson sampling, establishing an exploration-visibility
+trade-off (Section 7.3).
+2 Related Work
+Trust propagation systems.EigenTrust [ 1] applies power iteration
+to local trust ratings to yield a global score per node. PeerTrust [5]
+adds transaction context and rater credibility. Both implicitly treat
+dense reciprocal endorsements as reliable. Our experiments point
+the other way: a coordinated ring can seize the eigenvector because
+power iteration settles on the densest cluster first. TRACE does not
+rely on propagating trust. Instead, it uses PPR distance, entropy,
+and clique density todetectsuspicious behaviour, causing densely
+connected adversarial groups to accumulate penalties rather than
+gain reputation score.
+Sybil resistance.SybilGuard [ 6] and SybilLimit [ 7] depend on
+bounded-length random walks to exploit sparse connections sep-
+arating honest users from Sybil-controlled regions. The main as-
+sumption behind these methods is that creating links into the honest
+region is expensive. This works well in friendship graphs (bilat-
+eral consent required) but not economic graphs: an adversary can
+buy edges by completing a few cheap jobs, and the sparse-cut
+guarantee falls apart. Douceur [4] formalized the underlying impos-
+sibility: without a central authority, identity creation is unbounded.
+TRACE’s detection signal is the edge-to-job ratio. Nodes with many
+trust edges but few completed jobs are statistically anomalous, and
+the anomaly persists even when attackerscancreate edges, because
+edges without proportional work leave a distributional gap that
+legitimate providers do not exhibit.
+Adversarial bandits and exploration.TRACE’s routing inherits
+the exploration-exploitation tension from the bandit literature (Rob-
+bins and Monro [8] onward). UCB regret bounds come from Auer et
+al. [9]; Thompson sampling bounds from Agrawal and Goyal [10];
+the stochastic-versus-adversarial landscape is surveyed by Bubeck
+and Cesa-Bianchi [11]. Lykouris et al. [12] are closest to our setting;
+they study bandits under adversarial reward corruption and show
+degradation proportional to the corruption budget. Our twist is dif-
+ferent: the adversary chooses which arms are malicious (not which
+rewards are corrupted), and 30% of the population is compromised.
+The empirical result-Thompson sampling actively hurting-sits out-
+side their theoretical coverage. Pulling an arm here means sending
+money, not just accumulating regret in a bound.
+Decentralized marketplaces and reputation.Bittensor [ 13] uses
+trust-weighted miner consensus for inference routing. Filecoin
+avoids trust altogether with cryptographic storage proofs. Dellaro-
+cas [3] documents how anonymity and cheap switching create
+manipulation incentives with no offline analogue. TRACE sits in
+a different niche: work quality is subjective (syntactically valid
+output can be semantically garbage), cryptographic verification
+is unavailable, and the attacker wants money, not bandwidth or
+consensus influence.
+2
+--- PAGE 3 ---
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+250
+251
+252
+253
+254
+255
+256
+257
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290
+TRACE: Graph-Aware Anomaly Detection for Trust Routing in Adversarial Decentralized Marketplaces CIKM ’26, November 2026, Rome, Italy
+291
+292
+293
+294
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320
+321
+322
+323
+324
+325
+326
+327
+328
+329
+330
+331
+332
+333
+334
+335
+336
+337
+338
+339
+340
+341
+342
+343
+344
+345
+346
+347
+348
+3 System and Threat Model
+3.1 Marketplace Model
+We represent the marketplace as a tuple M=(𝑂, 𝑃, 𝐽 , 𝑇) : buyers
+𝑂, providers 𝑃, jobs 𝐽 priced in satoshis, and a trust graph 𝑇 de-
+rived from observed economic interactions. Each job is associated
+with a specific capability requirement, a price 𝑝 𝑗 , and a binary
+outcome: success or default. The router can observe 𝑇 and the his-
+tory of outcomes, but it cannot verify deriectly the true identity
+of a provider. This extends Resnick et al. ’s [2] reputation model by
+adding graph-structural signals and treating adversarial coordina-
+tion as a first-class concern.
+3.2 TRACE Architecture
+TRACE scores each provider via four components:
+(1) Bayesian LCB.Beta-Binomial posterior over job comple-
+tion rate (prior Beta(1,3)). The 95% lower confidence bound
+serves as the reliability estimate. Cold-start providers sit
+near the prior mean until evidence accumulates.
+(2) Default-risk penalty.Exponentially-smoothed default
+probability, combined with CUSUM change-point detec-
+tion [14] for identifying abrupt Behavioural shifts that sig-
+nal a transition from cooperative to adversarial Behaviour
+patterns.
+(3) Graph signals.PPR [ 15] from an honest seed ( ≥30 jobs,
+≤10% failure rate), weighted counterparty entropy, and
+Sybil-risk scoring based on the edge-to-job ratio that detects
+identity fabrication [4].
+(4) Coordination detection.Clique penalty for dense trust-
+edge neighborhoods; contamination penalty for connec-
+tions to flagged providers. These signals detect the struc-
+tural fingerprints of collusion rings without propagating
+trust through the graph, distinguishing TRACE from Eigen-
+Trust’s [1] propagation-based approach.
+The utility score combines these as:
+𝑢=𝛼·𝑠 trace−𝛽·𝑑risk−𝛾·𝑐norm+𝛿·𝑡net+𝜖·𝑚cap−𝜆·𝑝sybil−𝜇·𝑝clique (1)
+with(𝛼, 𝛽, 𝛾, 𝛿, 𝜖, 𝜆, 𝜇)=(0.40,0.30,0.15,0.10,0.10,0.35,0.25).
+Weight derivation.These weights were not grid-searched. They
+reflect the relative contribution of each component as measured by
+the ablation in Section 4: 𝛼= 0.40because the Bayesian LCB is the
+largest single contributor to honest/malicious separation; 𝜆= 0.35
+because disabling the Sybil penalty raises sybil-cluster fraud by
+75%. A perturbation analysis (±20% on each weight independently,
+180 cells) shows that no single-weight perturbation changes mean
+fraud by more than 2.3 sats-well within the 1𝜎 band of the baseline
+(4.3 sats on strategic-default). The results are not sensitive to the
+specific weight vector.
+3.3 The No-Bandit Variant
+TRACE’s default selection uses Thompson sampling [16] over Beta
+posteriors weighted by utility. Theno-banditvariant turns Thomp-
+son sampling off and picks the highest-utility eligible provider every
+time (greedy argmax). Everything else stays the same-same scoring,
+same filters, same graph signals. It is a single boolean flag in the
+codebase. The experiments below show that this one flag changes
+fraud outcomes by 56–86%, which is why the comparison matters.
+3.4 Threat Model
+We evaluate four attack profiles at 30% malicious ratio with uniform-
+random placement, spanning the spectrum from uncoordinated
+individual defection to adaptive game-theoretic exploitation:
+(1) Strategic-default.Solo adversaries calibrate default prob-
+ability to maximise fraud below detection thresholds. No
+coordination among attackers; each operates independently,
+relying on statistical camouflage rather than graph manip-
+ulation.
+(2) Collusion-ring.Coordinated adversaries inflate mutual
+trust scores during a build-up phase, then exploit inflated
+scores to attract routing. This attack targets trust propaga-
+tion systems [1] directly by manufacturing the dense edge
+patterns that eigenvector methods interpret as trustworthi-
+ness.
+(3) Sybil-cluster.Adversaries create multiple identities con-
+nected by trust edges, attempting to capture disproportion-
+ate routing share through identity multiplication [4]. This
+tests whether routing policies can resist the fundamental
+vulnerability identified by Douceur in the absence of cen-
+tralized identity verification.
+(4) Game-Theoretic (GT).An adaptive adversary that mon-
+itors its own score and defects only when it exceeds the
+75th percentile of all active providers. The threshold is dy-
+namic and self-calibrating, representing a patient attacker
+that balances short-term fraud extraction against long-term
+score maintenance.
+4 Results: Sparse Topology
+All experiments in this section use the same contract: N=1,000
+agents, 30% malicious, 60 rounds × 5 jobs/round, 5 buyers, propaga-
+tion delay of 2 rounds, no pre-existing trust edges (synthetic-empty).
+Each cell was evaluated using ten different random seeds.
+4.1 Main Results
+Tables 1 and 2 show the full matrix.
+Strategic-default.TRACE-no-bandit yields 4.7 sats mean fraud,
+56% below TRACE-full’s 10.7. In practice, greedy selection strategy
+identifies three or four honest providers with high-LCB within the
+first few rounds and then sticks with them. Thompson sampling
+keeps pulling providers with only two or three completed jobs-thin
+posteriors, high variance-and those providers are adversaries more
+often than not. MR at 30.3% (the population base rate) suggests the
+reduction is not about avoiding adversaries broadly; it comes from
+avoiding the high-uncertainty tail where adversaries concentrate.
+Collusion-ring.This is the largest gap in the table: 6.4 vs 46.5
+sats, an 86% drop. During rounds 1–15, the colluding ring focuses
+on artificially boosting each other’s reputation scores. Thompson
+sampling sees high-variance posteriors and routes there, which
+is exactly what it is designed to do with uncertain arms. Greedy
+selection never touches them because their LCB (which discounts
+thin evidence) sits below the proven honest set. EigenTrust [1] at
+3
+--- PAGE 4 ---
+349
+350
+351
+352
+353
+354
+355
+356
+357
+358
+359
+360
+361
+362
+363
+364
+365
+366
+367
+368
+369
+370
+371
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384
+385
+386
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397
+398
+399
+400
+401
+402
+403
+404
+405
+406
+CIKM ’26, November 2026, Rome, Italy Anon.
+407
+408
+409
+410
+411
+412
+413
+414
+415
+416
+417
+418
+419
+420
+421
+422
+423
+424
+425
+426
+427
+428
+429
+430
+431
+432
+433
+434
+435
+436
+437
+438
+439
+440
+441
+442
+443
+444
+445
+446
+447
+448
+449
+450
+451
+452
+453
+454
+455
+456
+457
+458
+459
+460
+461
+462
+463
+464
+Table 1: Average fraud exposure (in sats) across four routing policies and four attack scenarios. N=1,000, 30% malicious, 10
+seeds. Bold: lowest per column.†: EigenTrust’s 4.4-sat GT fraud comes at 41.2% malicious routing rate.
+Policy Strategic-default Collusion-ring Sybil-cluster Game-theoretic (p75)
+TRACE-no-bandit4.7±4.3 6.4±3.3 7.1±3.231.7±5.3
+TRACE-full 10.7 46.5 19.0 83.7
+REPUTATION 16.0 58.0 18.0 56.9
+PRICE 11.1 74.4 32.8 79.4
+EIGENTRUST 22.0 183.4 185.44.4 †
+Table 2: Malicious routing rate (MR, %). ‡: EigenTrust [1] routes 81.7% of jobs to Sybil-controlled identities (approximately 4 out
+of 5).
+Policy Strategic-default Collusion-ring Sybil-cluster Game-theoretic (p75)
+TRACE-no-bandit 30.3 16.4 24.6 18.2
+TRACE-full 32.2 27.8 23.0 27.5
+REPUTATION 30.2 26.8 29.0 28.7
+PRICE 29.3 29.4 29.6 29.3
+EIGENTRUST 38.7 39.981.7 ‡ 41.2
+183.4 sats is a total failure: propagation treats the ring’s mutual
+endorsements as genuine trust and hands them the eigenvector.
+Sybil-cluster.EigenTrust [ 1] reaches 81.7% MR, the most sig-
+nificant result reported in the paper. Four out of five jobs go to
+Sybil-controlled identities. The eigenvector concentrates on the
+densest cluster, and under Sybil attack that cluster is adversarial.
+Reputation-only stays at 29% MR because it scores providers indi-
+vidually, without neighbour borrowing. TRACE-no-bandit yields
+7.1 sats and 24.6% MR.
+Game-theoretic.EigenTrust achieves 4.4 sats fraud but 41.2%
+MR-the worst adversary exposure of any policy on any attack. A
+plausible explanation is that the p75 defection gate fires less when
+routing is spread thin, so EigenTrust’s diffuse allocation keeps the
+adversary below its own trigger. TRACE-no-bandit (31.7 sats, 18.2%
+MR) accepts more fraud in exchange for far less adversary contact,
+which matters when each malicious interaction carries secondary
+risks beyond the payment itself.
+4.2 Exploration Cost
+The ablation (Figure 1) isolates Thompson sampling as the source of
+TRACE-full’s higher fraud. All other components remain active in
+both variants. The reduction is consistent: every seed shows lower
+fraud under no-bandit for every attack. We did not see a single seed
+where Thompson sampling outperformed greedy on any attack
+type under this contract.
+Mann–Whitney U tests [17] confirm statistical significance on
+three of four attacks: collusion-ring ( 𝑈= 0, 𝑝< 0.001, Cliff’s
+𝛿=− 1.00, large), sybil-cluster ( 𝑈= 6, 𝑝< 0.001, 𝛿=− 0.88,
+large), and game-theoretic (𝑈= 0, 𝑝< 0.001, 𝛿=− 1.00, large). On
+strategic-default, the effect is directional (𝛿=− 0.43, medium) but
+does not reach significance at n=10 (𝑈= 29, 𝑝= 0.104), likely due
+to high per-seed variance on this attack type (std 4.3 sats on a mean
+of 4.7).
+/uni00000036/uni00000057/uni00000055/uni00000044/uni00000057/uni00000048/uni0000004a/uni0000004c/uni00000046/uni00000026/uni00000052/uni0000004f/uni0000004f/uni00000058/uni00000056/uni0000004c/uni00000052/uni00000051/uni00000036/uni0000005c/uni00000045/uni0000004c/uni0000004f/uni0000002a/uni00000037/uni00000003/uni0000000b/uni00000053/uni0000001a/uni00000018/uni0000000c
+/uni00000013
+/uni00000015/uni00000013
+/uni00000017/uni00000013
+/uni00000019/uni00000013
+/uni0000001b/uni00000013/uni00000030/uni00000048/uni00000044/uni00000051/uni00000003/uni00000029/uni00000055/uni00000044/uni00000058/uni00000047/uni00000003/uni00000028/uni0000005b/uni00000053/uni00000052/uni00000056/uni00000058/uni00000055/uni00000048/uni00000003/uni0000000b/uni00000056/uni00000044/uni00000057/uni00000056/uni0000000c
+/uni00000018/uni00000019/uni00000008
+/uni0000001b/uni00000019/uni00000008
+/uni00000019/uni00000016/uni00000008
+/uni00000019/uni00000015/uni00000008
+/uni00000037/uni0000004b/uni00000052/uni00000050/uni00000053/uni00000056/uni00000052/uni00000051/uni00000003/uni00000036/uni00000044/uni00000050/uni00000053/uni0000004f/uni0000004c/uni00000051/uni0000004a/uni00000003/uni00000028/uni0000005b/uni00000053/uni0000004f/uni00000052/uni00000055/uni00000044/uni00000057/uni0000004c/uni00000052/uni00000051/uni00000003/uni00000026/uni00000052/uni00000056/uni00000057
+/uni00000038/uni00000051/uni00000047/uni00000048/uni00000055/uni00000003/uni00000024/uni00000047/uni00000059/uni00000048/uni00000055/uni00000056/uni00000044/uni00000055/uni0000004c/uni00000044/uni0000004f/uni00000003/uni0000002f/uni00000052/uni00000044/uni00000047
+/uni00000037/uni00000035/uni00000024/uni00000026/uni00000028/uni00000010/uni00000049/uni00000058/uni0000004f/uni0000004f/uni00000003/uni0000000b/uni00000037/uni0000004b/uni00000052/uni00000050/uni00000053/uni00000056/uni00000052/uni00000051/uni0000000c
+/uni00000037/uni00000035/uni00000024/uni00000026/uni00000028/uni00000010/uni00000051/uni00000052/uni00000010/uni00000045/uni00000044/uni00000051/uni00000047/uni0000004c/uni00000057/uni00000003/uni0000000b/uni0000002a/uni00000055/uni00000048/uni00000048/uni00000047/uni0000005c/uni0000000c
+/uni00000035/uni00000028/uni00000033/uni00000038/uni00000037/uni00000024 /uni00000037/uni0000002c/uni00000032/uni00000031/uni00000003/uni00000045/uni00000044/uni00000056/uni00000048/uni0000004f/uni0000004c/uni00000051/uni00000048
+Figure 1: Fraud under TRACE-full (Thompson sampling) vs.
+TRACE-no-bandit (greedy) across four attacks. Error bars: ±1
+std over 10 seeds. Dashed lines: REPUTATION baseline.
+4.3 Behavioural Adversary Falsification
+We designed an adversary specifically to test whether greedy con-
+centration creates a vulnerability. The Behavioural GT adversary
+observes its own routing share and defects only when that share
+exceeds 1.5× fair-share-under-uniform AND the job price exceeds
+1.2× median. It reads no internal scores. If greedy concentration
+triggers this adversary more than Thompson sampling does, the
+exploration-cost finding would invert.
+It did not invert (Table 3). TRACE-no-bandit at 3.4 sats is second-
+lowest, 1.2 above REPUTATION. Full TRACE’s 27.8-sat fraud was
+almost entirely exploration cost. The routing-share gate fires under
+4
+--- PAGE 5 ---
+465
+466
+467
+468
+469
+470
+471
+472
+473
+474
+475
+476
+477
+478
+479
+480
+481
+482
+483
+484
+485
+486
+487
+488
+489
+490
+491
+492
+493
+494
+495
+496
+497
+498
+499
+500
+501
+502
+503
+504
+505
+506
+507
+508
+509
+510
+511
+512
+513
+514
+515
+516
+517
+518
+519
+520
+521
+522
+TRACE: Graph-Aware Anomaly Detection for Trust Routing in Adversarial Decentralized Marketplaces CIKM ’26, November 2026, Rome, Italy
+523
+524
+525
+526
+527
+528
+529
+530
+531
+532
+533
+534
+535
+536
+537
+538
+539
+540
+541
+542
+543
+544
+545
+546
+547
+548
+549
+550
+551
+552
+553
+554
+555
+556
+557
+558
+559
+560
+561
+562
+563
+564
+565
+566
+567
+568
+569
+570
+571
+572
+573
+574
+575
+576
+577
+578
+579
+580
+Table 3: Behavioural GT adversary (N=1,000, 30% MR, n=10).
+The inversion hypothesis is rejected.
+Policy Fraud (sats) MR (%)
+TRACE-full 27.8±10.5 27.8
+TRACE-no-bandit3.4±2.730.4
+REPUTATION 2.2±1.3 30.1
+PRICE 2.2±0.7 29.8
+EIGENTRUST 4.6±7.7 44.2
+both variants (MR is similar), but under greedy selection the adver-
+saries thatdoget routed are ones whose early jobs happened to
+succeed-they never trigger the defection gate because their share
+stays below threshold. Under Thompson sampling, the exploration
+arm hands jobs to the unproven tail, where adversaries defect im-
+mediately because they have no reputational stake to protect.
+4.4 EigenTrust Collapse
+/uni00000014/uni00000015/uni00000016/uni00000017/uni00000018/uni00000019/uni0000001a/uni0000001b/uni0000001c/uni00000014/uni00000013
+/uni00000036/uni00000048/uni00000048/uni00000047
+/uni00000013
+/uni00000015/uni00000013
+/uni00000017/uni00000013
+/uni00000019/uni00000013
+/uni0000001b/uni00000013
+/uni00000014/uni00000013/uni00000013/uni00000030/uni00000044/uni0000004f/uni0000004c/uni00000046/uni0000004c/uni00000052/uni00000058/uni00000056/uni00000003/uni00000035/uni00000052/uni00000058/uni00000057/uni0000004c/uni00000051/uni0000004a/uni00000003/uni00000035/uni00000044/uni00000057/uni00000048/uni00000003/uni0000000b/uni00000008/uni0000000c
+/uni00000016/uni00000013/uni00000008/uni00000003/uni00000053/uni00000052/uni00000053/uni00000011
+/uni0000001b/uni00000014/uni00000011/uni0000001a/uni00000008
+/uni00000028/uni0000004c/uni0000004a/uni00000048/uni00000051/uni00000037/uni00000055/uni00000058/uni00000056/uni00000057/uni00000003/uni00000036/uni0000005c/uni00000045/uni0000004c/uni0000004f/uni00000003/uni00000026/uni00000052/uni0000004f/uni0000004f/uni00000044/uni00000053/uni00000056/uni00000048
+/uni0000000b/uni00000036/uni0000005c/uni00000045/uni0000004c/uni0000004f/uni00000010/uni00000026/uni0000004f/uni00000058/uni00000056/uni00000057/uni00000048/uni00000055/uni00000003/uni00000024/uni00000057/uni00000057/uni00000044/uni00000046/uni0000004e/uni0000000f/uni00000003/uni00000031/uni00000020/uni00000014/uni00000013/uni00000013/uni00000013/uni0000000f/uni00000003/uni00000016/uni00000013/uni00000008/uni00000003/uni00000030/uni00000035/uni0000000c
+/uni00000028/uni0000002c/uni0000002a/uni00000028/uni00000031/uni00000037/uni00000035/uni00000038/uni00000036/uni00000037
+/uni00000037/uni00000035/uni00000024/uni00000026/uni00000028/uni00000010/uni00000051/uni00000052/uni00000010/uni00000045/uni00000044/uni00000051/uni00000047/uni0000004c/uni00000057
+/uni00000035/uni00000028/uni00000033/uni00000038/uni00000037/uni00000024 /uni00000037/uni0000002c/uni00000032/uni00000031
+/uni00000033/uni00000035/uni0000002c/uni00000026/uni00000028
+Figure 2: Per-seed MR under sybil-cluster. EigenTrust [ 1]
+never drops below 75% across 10 seeds. Other policies cluster
+near the 30% population rate.
+Not a fluke (Figure 2). Ten seeds, every single one above 75%
+Sybil MR. Tuning the pre-trust vector or convergence threshold
+does not help. Power iteration finds the dominant structure in the
+trust matrix; when 30% of nodes form a tightly connected cluster,
+that clusteristhe dominant structure.
+5 Dense Topology and Real-World Graphs
+The sparse-topology results raised an obvious question: does the
+exploration-cost effect survive on graphs with pre-existing trust
+structure? We tested three dense topologies to determine whether
+the findings generalize beyond the synthetic-empty setting, using
+both synthetic graphs and real-world trust networks from the SNAP
+repository [20].
+/uni00000036/uni00000057/uni00000055/uni00000044/uni00000057/uni00000048/uni0000004a/uni0000004c/uni00000046/uni00000026/uni00000052/uni0000004f/uni0000004f/uni00000058/uni00000056/uni0000004c/uni00000052/uni00000051/uni00000036/uni0000005c/uni00000045/uni0000004c/uni0000004f/uni0000002a/uni00000037/uni00000003/uni0000000b/uni00000053/uni0000001a/uni00000018/uni0000000c
+/uni00000013
+/uni00000014/uni00000013
+/uni00000015/uni00000013
+/uni00000016/uni00000013
+/uni00000017/uni00000013
+/uni00000018/uni00000013
+/uni00000019/uni00000013/uni00000030/uni00000048/uni00000044/uni00000051/uni00000003/uni00000029/uni00000055/uni00000044/uni00000058/uni00000047/uni00000003/uni00000028/uni0000005b/uni00000053/uni00000052/uni00000056/uni00000058/uni00000055/uni00000048/uni00000003/uni0000000b/uni00000056/uni00000044/uni00000057/uni00000056/uni0000000c
+/uni00000044/uni00000047/uni00000059/uni00000044/uni00000051/uni00000057/uni00000044/uni0000004a/uni00000048
+/uni00000047/uni0000004c/uni00000056/uni00000044/uni00000053/uni00000053/uni00000048/uni00000044/uni00000055/uni00000056
+/uni00000044/uni00000047/uni00000059/uni00000044/uni00000051/uni00000057/uni00000044/uni0000004a/uni00000048
+/uni00000047/uni0000004c/uni00000056/uni00000044/uni00000053/uni00000053/uni00000048/uni00000044/uni00000055/uni00000056
+/uni00000037/uni00000052/uni00000053/uni00000052/uni0000004f/uni00000052/uni0000004a/uni0000005c/uni00000003/uni00000026/uni00000052/uni00000051/uni00000047/uni0000004c/uni00000057/uni0000004c/uni00000052/uni00000051/uni00000044/uni0000004f/uni0000004c/uni00000057/uni0000005c/uni00000003/uni00000052/uni00000049/uni00000003/uni00000031/uni00000052/uni00000010/uni00000025/uni00000044/uni00000051/uni00000047/uni0000004c/uni00000057/uni00000003/uni00000024/uni00000047/uni00000059/uni00000044/uni00000051/uni00000057/uni00000044/uni0000004a/uni00000048
+/uni0000000b/uni00000037/uni00000035/uni00000024/uni00000026/uni00000028/uni00000010/uni00000051/uni00000052/uni00000010/uni00000045/uni00000044/uni00000051/uni00000047/uni0000004c/uni00000057/uni0000000f/uni00000003/uni00000031/uni00000020/uni00000014/uni00000013/uni00000013/uni00000013/uni0000000f/uni00000003/uni00000016/uni00000013/uni00000008/uni00000003/uni00000030/uni00000035/uni0000000c
+/uni00000036/uni00000053/uni00000044/uni00000055/uni00000056/uni00000048/uni00000003/uni0000000b/uni00000056/uni0000005c/uni00000051/uni00000057/uni0000004b/uni00000048/uni00000057/uni0000004c/uni00000046/uni00000010/uni00000048/uni00000050/uni00000053/uni00000057/uni0000005c/uni0000000c
+/uni00000027/uni00000048/uni00000051/uni00000056/uni00000048/uni00000003/uni0000000b/uni00000014/uni0000001b/uni0000002e/uni00000003/uni00000048/uni00000047/uni0000004a/uni00000048/uni00000056/uni0000000c
+Figure 3: TRACE-no-bandit fraud on sparse vs. dense topol-
+ogy. The greedy advantage disappears on collusion-ring and
+sybil-cluster when pre-existing edges are present.
+Table 4: TRACE-no-bandit fraud: sparse (n=10) vs. dense
+(n=10).
+Attack Sparse Dense
+Strategic-default 4.7±4.3 5.4±3.5
+Collusion-ring 6.4±3.3 48.0±8.9
+Sybil-cluster 7.1±3.2 30.8±3.8
+Game-theoretic 31.7±5.3 0
+5.1 Synthetic-Dense
+Figure 3 and Table 4 clearly illustrate the core findings. On synthetic-
+dense (18,472 edges, 1.85% density, 89.5% positive reliability), collusion-
+ring fraud rose from 6.4 to 48.0 sats; sybil-cluster from 7.1 to 30.8.
+Pre-existing trust edges allow coordinated adversaries to achiever
+higher LCB scores even before engaging in malicious behaviour.
+Greedy selection then locks onto them-the graph signals cannot
+separate a well-connected adversary from a well-connected honest
+provider. EigenTrust [1] still collapses for the same reason as before:
+the densest cluster wins the eigenvector, adversarial or not.
+Strategic-default stayed low (5.4 sats)-solo defectors gain noth-
+ing from pre-existing edges, and their scores track individual job
+outcomes. GT dropped to zero because dense positive edges com-
+press the score distribution so tightly that no provider crosses the
+p75 defection threshold.
+5.2 Bitcoin OTC
+Table 5 confirms the pattern on Bitcoin OTC [18, 19] (from SNAP [20]).
+No-bandit fraud on collusion (45.1) and Sybil (28.1) is indistinguish-
+able from TRACE-full (45.7, 27.9). The greedy advantage is gone.
+Strategic-default still shows a small gap (5.0 vs 5.8)-solo defectors
+gain nothing from pre-existing edges since their scores track indi-
+vidual job outcomes.
+5
+--- PAGE 6 ---
+581
+582
+583
+584
+585
+586
+587
+588
+589
+590
+591
+592
+593
+594
+595
+596
+597
+598
+599
+600
+601
+602
+603
+604
+605
+606
+607
+608
+609
+610
+611
+612
+613
+614
+615
+616
+617
+618
+619
+620
+621
+622
+623
+624
+625
+626
+627
+628
+629
+630
+631
+632
+633
+634
+635
+636
+637
+638
+CIKM ’26, November 2026, Rome, Italy Anon.
+639
+640
+641
+642
+643
+644
+645
+646
+647
+648
+649
+650
+651
+652
+653
+654
+655
+656
+657
+658
+659
+660
+661
+662
+663
+664
+665
+666
+667
+668
+669
+670
+671
+672
+673
+674
+675
+676
+677
+678
+679
+680
+681
+682
+683
+684
+685
+686
+687
+688
+689
+690
+691
+692
+693
+694
+695
+696
+Table 5: Bitcoin OTC [18, 19] (1.85% density, n=10). No-bandit
+shows no improvement over full TRACE on coordinated
+attacks.
+Attack Full No-bandit MR
+Strategic-def. 5.8 5.0±2.7 31.3%
+Collusion 45.7 45.1±9.2 30.1%
+Sybil 27.9 28.1±7.2 31.3%
+Game-theoretic 0 0 31.3%
+5.3 Bitcoin Alpha
+Table 6: Bitcoin Alpha [ 18, 19] (1.20% density, n=10). Same
+pattern as OTC despite lower density.
+Attack Fraud (sats) MR (%)
+Strategic-default 4.7±2.7 30.9
+Collusion-ring 47.1±6.1 30.1
+Sybil-cluster 29.9±5.5 31.0
+Game-theoretic 0 30.9
+Bitcoin Alpha [18, 19] is sparser (1.20% vs OTC’s 1.85%) but the
+pattern is identical (Table 6). We swept intermediate densities (0.5%,
+0.8%, n=5 each, collusion-ring) and the transition turned out to be
+abrupt: 6.2 sats at 0.8%, then 47.1 sats at 1.2%. Not gradual. Some-
+thing flips between those two values-once adversaries have enough
+pre-existing edges, greedy filtering loses its ability to separate them
+from honest providers with similar connectivity patterns.
+6 Scale
+Table 7: N=5,000 (sparse, 30% MR). Baselines: 5 seeds. No-
+bandit: 10 seeds. ★EigenTrust [1] sybil: ∼80% MR across all
+seeds.
+Policy Strat. Collus. Sybil GT
+TRACE-no-bandit4.6 17.6 14.237.7
+REPUTATION 9.6 56.0 24.6 60.2
+PRICE 5.6 41.8 25.8 75.4
+EIGENTRUST 8.2244.463.0 ★ 6.8
+At N=5,000 (Table 7), EigenTrust’s [1] collusion-ring fraud av-
+erages 244 sats across 5 seeds (vs 183 at N=1,000). Its Sybil MR
+stays near 80% across all seeds. The eigenvector has more mass to
+concentrate as the network grows, because the Sybil cluster scales
+proportionally with the population and its internal edge density
+remains the dominant structural feature of the trust matrix.
+TRACE-no-bandit at N=5,000 (10 seeds) maintains bounded fraud:
+strategic-default 4.6, collusion-ring 17.6, sybil-cluster 14.2, GT 37.7.
+It achieves the lowest fraud on three of four attacks at scale, with
+collusion-ring fraud 14× lower than EigenTrust (17.6 vs 244.4). The
+exploration-cost finding scales to larger networks on sparse topol-
+ogy without degradation.
+7 Discussion and Limitations
+7.1 The Fraud-Openness Trade-off
+Greedy selection reduces fraud but concentrates routing onto a
+small set of proven providers (Figure 4). In our concentration probe
+(strategic-default, n=3 paired seeds), TRACE-no-bandit served only
+66 of 700 honest providers versus 125 for full TRACE-a 47% re-
+duction in provider diversity (Table 8). This tension parallels the
+proportional fairness problem in network resource allocation [21],
+where optimizing for one objective (throughput, or in our case fraud
+minimization) degrades another (fairness, or in our case provider
+diversity), and improving the Pareto frontier requires additional
+degrees of freedom.
+Table 8: Provider concentration: full TRACE vs. no-bandit
+on strategic-default (n=3).
+Metric Full No-bandit Delta
+Served honest 125/700 66/700−47%
+Top-10 share 19.4% 30.6% +11.2 pp
+HHI (normalized) 0.009 0.019 2.1×
+/uni00000013/uni00000018/uni00000014/uni00000013/uni00000014/uni00000018/uni00000015/uni00000013/uni00000015/uni00000018
+/uni00000030/uni00000048/uni00000044/uni00000051/uni00000003/uni00000029/uni00000055/uni00000044/uni00000058/uni00000047/uni00000003/uni0000000b/uni00000056/uni00000044/uni00000057/uni00000056/uni0000000c/uni00000003/uni00000003/uni0000004f/uni00000052/uni0000005a/uni00000048/uni00000055/uni00000003/uni0000004c/uni00000056/uni00000003/uni00000045/uni00000048/uni00000057/uni00000057/uni00000048/uni00000055/uni00000003
+/uni00000013
+/uni00000015/uni00000013
+/uni00000017/uni00000013
+/uni00000019/uni00000013
+/uni0000001b/uni00000013
+/uni00000014/uni00000013/uni00000013
+/uni00000014/uni00000015/uni00000013
+/uni00000014/uni00000017/uni00000013
+/uni00000014/uni00000019/uni00000013/uni00000036/uni00000048/uni00000055/uni00000059/uni00000048/uni00000047/uni00000003/uni0000002b/uni00000052/uni00000051/uni00000048/uni00000056/uni00000057/uni00000003/uni00000033/uni00000055/uni00000052/uni00000059/uni0000004c/uni00000047/uni00000048/uni00000055/uni00000056/uni00000003/uni0000000b/uni00000052/uni00000049/uni00000003/uni0000001a/uni00000013/uni00000013/uni0000000c/uni00000003/uni00000003/uni0000004b/uni0000004c/uni0000004a/uni0000004b/uni00000048/uni00000055/uni00000003/uni0000004c/uni00000056/uni00000003/uni00000045/uni00000048/uni00000057/uni00000057/uni00000048/uni00000055/uni00000003
+/uni00000037/uni00000035/uni00000024/uni00000026/uni00000028/uni00000010/uni00000051/uni00000052/uni00000010/uni00000045/uni00000044/uni00000051/uni00000047/uni0000004c/uni00000057
+/uni00000037/uni00000035/uni00000024/uni00000026/uni00000028/uni00000010/uni00000049/uni00000058/uni0000004f/uni0000004f
+/uni00000029/uni00000055/uni00000044/uni00000058/uni00000047/uni00000003/uni0000004a/uni00000044/uni00000053
+/uni00000032/uni00000053/uni00000048/uni00000051/uni00000051/uni00000048/uni00000056/uni00000056
+/uni0000004a/uni00000044/uni00000053
+/uni00000029/uni00000055/uni00000044/uni00000058/uni00000047/uni00000010/uni00000032/uni00000053/uni00000048/uni00000051/uni00000051/uni00000048/uni00000056/uni00000056/uni00000003/uni00000037/uni00000055/uni00000044/uni00000047/uni00000048/uni00000010/uni00000052/uni00000049/uni00000049
+/uni0000000b/uni00000036/uni00000057/uni00000055/uni00000044/uni00000057/uni00000048/uni0000004a/uni0000004c/uni00000046/uni00000010/uni00000027/uni00000048/uni00000049/uni00000044/uni00000058/uni0000004f/uni00000057/uni0000000f/uni00000003/uni00000031/uni00000020/uni00000014/uni00000013/uni00000013/uni00000013/uni0000000c
+Figure 4: Fraud vs. served providers on strategic-default. The
+trade-off is monotone: lower fraud costs fewer providers
+served.
+We attempted two mechanisms to recover openness without
+regressing fraud. Both failed, in instructive ways.
+Loose round-robin.We cycled through LCB-tied providers (5%
+window, K=10). The served count recovered to 104/700, but fraud
+jumped to 13.0±8.4 sats. With low evidence, the “tied” set is contaminated-
+adversaries whose posteriors sit near the prior are indistinguishable
+from honest newcomers, so round-robin assigns them jobs indis-
+criminately.
+6
+--- PAGE 7 ---
+697
+698
+699
+700
+701
+702
+703
+704
+705
+706
+707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720
+721
+722
+723
+724
+725
+726
+727
+728
+729
+730
+731
+732
+733
+734
+735
+736
+737
+738
+739
+740
+741
+742
+743
+744
+745
+746
+747
+748
+749
+750
+751
+752
+753
+754
+TRACE: Graph-Aware Anomaly Detection for Trust Routing in Adversarial Decentralized Marketplaces CIKM ’26, November 2026, Rome, Italy
+755
+756
+757
+758
+759
+760
+761
+762
+763
+764
+765
+766
+767
+768
+769
+770
+771
+772
+773
+774
+775
+776
+777
+778
+779
+780
+781
+782
+783
+784
+785
+786
+787
+788
+789
+790
+791
+792
+793
+794
+795
+796
+797
+798
+799
+800
+801
+802
+803
+804
+805
+806
+807
+808
+809
+810
+811
+812
+Tight round-robin.Tightened to a 2% window and added an
+evidence floor (successfulJobs≥1). Fraud stayed low, but we gained
+exactly 4 providers. The problem is circular: providers need jobs
+to build evidence, the tight window excludes them for lacking
+evidence, and 60 rounds is not enough time for more than a handful
+to escape this trap.
+The implication is that fraud defense and openness discovery
+cannot share the same selection mechanism. They require separate
+tracks with independent budgets-a direction we leave to future
+work under the heading of risk-conditioned exploration.
+7.2 Density Boundary
+The exploration-cost advantage holds on sparse graphs and disap-
+pears above ∼1.2% density, confirmed on three independent topolo-
+gies (synthetic-dense, Bitcoin OTC [18], Bitcoin Alpha [18]). An
+intermediate density sweep on collusion-ring (the most density-
+sensitive attack) shows a sharp transition: fraud stays at 6.2 sats
+through 0.8% density, then jumps 7.5 × to 47.1 sats at 1.2%. The
+boundary lies between 0.8% and 1.2% edge density, indicating a
+phase transition in the effectiveness of greedy filtering once pre-
+existing edge density crosses a critical threshold.
+7.3 Exploration-Visibility Trade-off
+We split the router into five independent buyers, each seeing only
+its own 60 jobs (total budget unchanged:5 × 60 = 300). No shared
+state between buyers.
+Table 9: Partitioned-view fraud (sats). 5 buyers, 60 jobs each,
+n=5 seeds. Bold: lowest per column.
+Policy Strat. Collus. Sybil GT
+TRACE-full6.4 44.624.2 86.8
+TRACE-no-bandit 32.0 51.6 32.864.4
+REPUTATION 18.0 55.420.085.0
+PRICE 5.0 46.6 25.6 68.4
+EIGENTRUST 8.2 291.0 103.8 47.6
+The result inverts (Table 9). TRACE-no-bandit on strategic-default
+goes from 4.7 sats (centralized) to 32.0 sats-6.8 × worse. Per-seed
+sybil-cluster fraud ranges from 11 to 76 sats. Greedy on 60 jobs is
+a coin flip: if a buyer’s first successful provider is adversarial, it
+locks on and gets drained. EigenTrust [1] on collusion-ring wors-
+ens to 291 sats (from 183) at 60.5% MR. Trust propagation breaks
+regardless of view fragmentation.
+Why does this happen? Premature lock-in. Sixty jobs is not
+enough for Bayesian posteriors to converge. Greedy picks who-
+ever succeeded first in that buyer’s local history-and with 30%
+adversaries, that is a malicious provider roughly one time in three.
+Thompson sampling prevents lock-in by occasionally trying al-
+ternatives. With thin evidence, this is insurance, not waste. The
+exploration cost from Section 4 is not intrinsic to the algorithm;
+it depends on how much evidence the router has. Global visibility
+(300 jobs) yields converged posteriors and exploration hitting the
+adversary tail. Local visibility (60 jobs) yields uncertain posteriors
+and exploration providing a safety net.
+7.4 Robustness Checks
+Adversary ratio.Sweeping 20%, 40%, 50% adversary ratios: strategic-
+default fraud scales monotonically (2.4, 4.7, 4.6, 9.0 sats). No cliff-
+edge failure. The filter does not claim to outperform the population
+rate without oracle access.
+Honest failure rate.Honest failure at 5%, 15%, 25%: no meaningful
+fraud change (strategic-default: 5.6, 2.8, 4.2; GT: 31.0, 33.4, 34.8). The
+trace-score filter discriminates on failurepattern, not rate-strategic
+bursts cluster around high-value jobs; honest failures distribute
+uniformly. Even at 25% honest noise, the two are separable.
+Adversary threshold.The GT adversary’s percentile gate (p50–
+p90) produced identical fraud (31.0 sats) across all thresholds under
+no-bandit. The result is driven by the routing policy’s filtering, not
+the adversary’s trigger calibration. Regardless of where the adver-
+sary sets its defection threshold, TRACE’s coordination detection
+and LCB scoring constrain the adversary’s routing share to a level
+where the gate rarely fires, rendering the specific percentile choice
+irrelevant.
+Weight sensitivity.Perturbing each of the 7 utility weights by
+±20% independently (180 cells, 3 seeds each) produced a maximum
+fraud delta of +2.3 sats from baseline-within the 1𝜎 band on every
+attack. This robustness arises from the complementary nature of
+the scoring components: when one signal is weakened by a weight
+reduction, the remaining signals compensate because they cap-
+ture partially overlapping aspects of adversarial Behaviour from
+different structural perspectives.
+7.5 Limitations
+Binary outcomes.Job outcomes are strictly binary. Real infer-
+ence providers produce a quality spectrum-a response may be
+syntactically correct but semantically wrong. Our Bayesian LCB
+cannot differentiate catastrophic failures from marginal ones. Ex-
+tending to graded outcomes requires a multinomial posterior and a
+richer fraud metric that captures the severity distribution, which
+in turn demands quality assessment capabilities beyond binary
+success/failure classification.
+Static adversary strategies.Each attack follows a fixed script. A
+real adversary would switch strategies under detection pressure,
+adapting its Behaviour based on observed score changes. Our Be-
+havioural GT adversary approximates adaptation via routing-share
+observation, but a reinforcement-learning adversary that optimizes
+fraud extraction longitudinally remains untested. Such an adversary
+could potentially discover strategy sequences that exploit TRACE’s
+detection latency in ways that fixed scripts cannot.
+Market concentration.The 47% drop in served honest providers
+creates a barrier to entry. Newcomers cannot accumulate evidence
+because they never get routed to, producing a self-reinforcing in-
+cumbency advantage. Our two recovery attempts (loose and tight
+round-robin) both failed, suggesting the tension between fraud-
+defense and newcomer-discovery is fundamental to any system
+that selects providers based on accumulated evidence [2].
+7
+--- PAGE 8 ---
+813
+814
+815
+816
+817
+818
+819
+820
+821
+822
+823
+824
+825
+826
+827
+828
+829
+830
+831
+832
+833
+834
+835
+836
+837
+838
+839
+840
+841
+842
+843
+844
+845
+846
+847
+848
+849
+850
+851
+852
+853
+854
+855
+856
+857
+858
+859
+860
+861
+862
+863
+864
+865
+866
+867
+868
+869
+870
+CIKM ’26, November 2026, Rome, Italy Anon.
+871
+872
+873
+874
+875
+876
+877
+878
+879
+880
+881
+882
+883
+884
+885
+886
+887
+888
+889
+890
+891
+892
+893
+894
+895
+896
+897
+898
+899
+900
+901
+902
+903
+904
+905
+906
+907
+908
+909
+910
+911
+912
+913
+914
+915
+916
+917
+918
+919
+920
+921
+922
+923
+924
+925
+926
+927
+928
+7.6 Future Work
+Visibility-conditioned exploration.Section 7.3 showed that explo-
+ration’s value flips with evidence volume. One concrete mechanism
+is to gate Thompson sampling on the utility gap between the top
+two candidates. A large gap (relative to cohort variance) implies a
+clear leader-skip exploration. A small gap implies posteriors have
+not separated-explore as insurance. The gap statistic is already com-
+puted in our scoring pipeline; we have not yet wired it into the
+selection logic or tested whether it resolves both regimes simulta-
+neously.
+Community-aware Sybil detection.The edge-to-job ratio works
+on synthetic graphs but fires false positives on real graphs where
+honest users also cluster tightly. A fix is to run Louvain or Leiden
+first, then measure each node’s clustering against its own commu-
+nity baseline rather than a global constant. Honest tight-knit groups
+stop triggering the alarm; adversarial clusters spanning multiple
+communities still get flagged.
+Longitudinal adversary adaptation.Our adversaries follow scripts.
+An RL adversary that watches its own score trajectory and learns to
+maximise fraud over hundreds of episodes would be a harder test-it
+might discover strategies like burning an identity to reset detec-
+tion state, or timing defections to coincide with high honest-failure
+noise so CUSUM cannot distinguish the signal.
+8 Conclusion
+We evaluated four trust-routing policies under coordinated adver-
+sarial pressure across 160 experimental cells at N=1,000 and a scale
+run at N=5,000. The principal findings are:
+• EigenTrust [1] routes 81.7% of jobs to Sybil identities across
+all 10 seeds, with the pathology persisting at N=5,000 and
+on two real-world Bitcoin trust graphs [18, 19].
+• Disabling Thompson sampling (greedy selection) reduces
+fraud by 56–86% across all four attack types on sparse
+graphs, with the largest effect on collusion-ring: 6.4 vs.
+46.5 sats.
+• TRACE-no-bandit achieves the lowest fraud on 3 of 4 at-
+tacks at both N=1,000 and N=5,000, with collusion-ring
+fraud 14× lower than EigenTrust at scale (17.6 vs. 244.4
+sats).
+• A Behavioural adversary designed to exploit greedy concen-
+tration fails to invert the finding: TRACE-no-bandit fraud
+remains at 3.4 sats versus 27.8 for full TRACE.
+• The greedy advantage vanishes above ∼1.2% edge density
+via a sharp phase transition, confirmed on three indepen-
+dent dense topologies.
+• Under partitioned views (60 jobs per buyer), greedy selec-
+tion produces 6.8× higher fraud than Thompson sampling,
+establishing an exploration-visibility trade-off that bounds
+the sparse-topology findings.
+These results carry a clear implication: the optimal exploration
+policy cannot be fixed. With global visibility and converged pos-
+teriors, exploration routes payments to the adversary tail; with
+local visibility and thin evidence, exploitation locks onto whichever
+provider happened to succeed first. Bridging these regimes requires
+conditioning exploration on evidence volume-a direction we leave
+to future work under visibility-conditioned exploration.
+Generative AI Disclosure
+We used Claude (Anthropic) during this work-primarily for writing
+experiment runner scripts, automating data aggregation, and iter-
+ating on manuscript drafts. The research questions, experimental
+designs, interpretation of results, and all scientific decisions are ours.
+Every number in this paper comes from deterministic simulation
+code whose outputs we verified against raw log files. No experi-
+mental results were generated by AI, no data was fabricated, and
+no claims were made without human verification. The simulation
+codebase is our original work; the AI assisted with implementation.
+Data Availability
+The Bitcoin OTC and Bitcoin Alpha signed-trust networks [18, 19]
+are publicly available from the Stanford Network Analysis Project
+(SNAP) [20]. The simulation framework and all experiment scripts
+will be released upon publication.
+References
+[1] S. D. Kamvar, M. T. Schlosser, and H. Garcia-Molina. The EigenTrust algorithm
+for reputation management in P2P networks. InProc. WWW, pages 640–651,
+2003.
+[2] P. Resnick, K. Kuwabara, R. Zeckhauser, and E. Friedman. Reputation systems.
+Communications of the ACM, 43(12):45–48, 2000.
+[3] C. Dellarocas. The digitization of word of mouth: Promise and challenges of
+online feedback mechanisms.Management Science, 49(10):1407–1424, 2003.
+[4] J. R. Douceur. The Sybil attack. InProc. IPTPS, pages 251–260, 2002.
+[5] L. Xiong and L. Liu. PeerTrust: Supporting reputation-based trust for peer-
+to-peer electronic communities.IEEE Trans. Knowledge and Data Engineering,
+16(7):843–857, 2004.
+[6] H. Yu, M. Kaminsky, P. B. Gibbons, and A. Flaxman. SybilGuard: Defending
+against sybil attacks via social networks. InProc. SIGCOMM, pages 267–278,
+2006.
+[7] H. Yu, P. B. Gibbons, M. Kaminsky, and F. Xiao. SybilLimit: A near-optimal social
+network defense against sybil attacks. InProc. IEEE S&P, pages 3–17, 2008.
+[8] H. Robbins and S. Monro. A stochastic approximation method.Annals of
+Mathematical Statistics, 22(3):400–407, 1951.
+[9] P. Auer, N. Cesa-Bianchi, and P. Fischer. Finite-time analysis of the multiarmed
+bandit problem.Machine Learning, 47(2-3):235–256, 2002.
+[10] S. Agrawal and N. Goyal. Analysis of Thompson sampling for the multi-armed
+bandit problem. InProc. COLT, pages 39.1–39.26, 2012.
+[11] S. Bubeck and N. Cesa-Bianchi. Regret analysis of stochastic and nonstochastic
+multi-armed bandits.Foundations and Trends in Machine Learning, 5(1):1–122,
+2012.
+[12] T. Lykouris, V. Mirrokni, and R. Paes Leme. Stochastic bandits robust to adver-
+sarial corruptions. InProc. STOC, pages 114–122, 2018.
+[13] A. Rao. Bittensor: A peer-to-peer intelligence market.arXiv preprint
+arXiv:2111.12050, 2021.
+[14] E. S. Page. Continuous inspection schemes.Biometrika, 41(1/2):100–115, 1954.
+[15] S. Brin and L. Page. The anatomy of a large-scale hypertextual web search engine.
+Computer Networks and ISDN Systems, 30(1–7):107–117, 1998.
+[16] D. J. Russo, B. Van Roy, A. Kazerouni, I. Osband, and Z. Wen. A tutorial on
+Thompson sampling.Foundations and Trends in Machine Learning, 11(1):1–96,
+2018.
+[17] H. B. Mann and D. R. Whitney. On a test of whether one of two random variables
+is stochastically larger than the other.Annals of Mathematical Statistics, 18(1):50–
+60, 1947.
+[18] S. Kumar, F. Spezzano, V. S. Subrahmanian, and C. Faloutsos. Edge weight
+prediction in weighted signed networks. InProc. ICDM, pages 221–230, 2016.
+[19] S. Kumar, B. Hooi, D. Makhija, M. Kumar, and C. Faloutsos. REV2: Fraudulent
+user prediction in rating platforms. InProc. WSDM, pages 333–341, 2018.
+[20] J. Leskovec and A. Krevl. SNAP Datasets: Stanford Large Network Dataset
+Collection.http://snap.stanford.edu/data, June 2014.
+[21] F. P. Kelly, A. K. Maulloo, and D. K. H. Tan. Rate control for communication
+networks: Shadow prices, proportional fairness and stability.J. Operational
+Research Society, 49(3):237–252, 1998.
+8
+--- PAGE 9 ---
+929
+930
+931
+932
+933
+934
+935
+936
+937
+938
+939
+940
+941
+942
+943
+944
+945
+946
+947
+948
+949
+950
+951
+952
+953
+954
+955
+956
+957
+958
+959
+960
+961
+962
+963
+964
+965
+966
+967
+968
+969
+970
+971
+972
+973
+974
+975
+976
+977
+978
+979
+980
+981
+982
+983
+984
+985
+986
+TRACE: Graph-Aware Anomaly Detection for Trust Routing in Adversarial Decentralized Marketplaces CIKM ’26, November 2026, Rome, Italy
+987
+988
+989
+990
+991
+992
+993
+994
+995
+996
+997
+998
+999
+1000
+1001
+1002
+1003
+1004
+1005
+1006
+1007
+1008
+1009
+1010
+1011
+1012
+1013
+1014
+1015
+1016
+1017
+1018
+1019
+1020
+1021
+1022
+1023
+1024
+1025
+1026
+1027
+1028
+1029
+1030
+1031
+1032
+1033
+1034
+1035
+1036
+1037
+1038
+1039
+1040
+1041
+1042
+1043
+1044
+[22] P. Whittle. Restless bandits: Activity allocation in a changing world.J. Applied
+Probability, 25(A):287–298, 1988.
+9

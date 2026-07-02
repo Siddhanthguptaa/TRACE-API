@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TRACE - Developer Portal</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        :root {
+            --color-trace: #14b8a6;
+            --color-text-muted: #9ca3af;
+        }
+        body {
+            background-color: #050505;
+            color: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        h2, h3, p, span {
+            color: #f3f4f6;
+        }
+        .portal-card {
+            background: rgba(13, 14, 21, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            margin: 100px auto;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--color-trace);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+        button.secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .key-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        .key-list li {
+            font-family: monospace;
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Auth Section -->
+        <div id="auth-section" class="portal-card">
+            <h2 style="margin-top: 0;">Developer Portal</h2>
+            <p style="color: var(--color-text-muted); margin-bottom: 24px;">Sign in to manage your TRACE API keys and balance.</p>
+            
+            <input type="email" id="email" placeholder="Email Address">
+            <input type="password" id="password" placeholder="Password">
+            
+            <button onclick="login()">Log In</button>
+            <button onclick="register()" class="secondary">Create Account</button>
+        </div>
+        
+        <!-- Dashboard Section -->
+        <div id="dashboard-section" class="portal-card" style="display:none; max-width: 700px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;">
+                <div>
+                    <h2 style="margin: 0;">Dashboard</h2>
+                    <p style="color: var(--color-text-muted); margin-top: 4px;" id="user-email"></p>
+                </div>
+                <button onclick="logout()" class="secondary" style="width: auto; padding: 8px 16px;">Logout</button>
+            </div>
+            
+            <div style="background: rgba(20, 184, 166, 0.1); border: 1px solid var(--color-trace); border-radius: 8px; padding: 24px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <p style="margin: 0; color: var(--color-trace); font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px;">Available Credits</p>
+                    <h1 style="margin: 4px 0 0 0;">$<span id="user-balance">0.00</span></h1>
+                </div>
+                <button onclick="checkout()" style="width: auto; padding: 12px 24px; margin: 0;">Top Up $20</button>
+            </div>
+            
+            <hr style="margin: 32px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">API Keys</h3>
+                <button onclick="generateKey()" style="width: auto; padding: 8px 16px; margin: 0;">+ New Key</button>
+            </div>
+            <ul id="keys-list" class="key-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let token = localStorage.getItem('trace_token');
+
+        async function init() {
+            if (token) {
+                await fetchDashboard();
+            }
+        }
+
+        async function login() {
+            const res = await fetch(API_URL + '/portal/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                token = data.access_token;
+                localStorage.setItem('trace_token', token);
+                await fetchDashboard();
+            } else {
+                const err = await res.json();
+                alert("Login failed: " + err.detail);
+            }
+        }
+
+        async function register() {
+            const res = await fetch(API_URL + '/portal/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                token = data.access_token;
+                localStorage.setItem('trace_token', token);
+                await fetchDashboard();
+            } else {
+                const err = await res.json();
+                alert("Registration failed: " + err.detail);
+            }
+        }
+
+        async function fetchDashboard() {
+            const res = await fetch(API_URL + '/portal/me', {
+                headers: {'Authorization': 'Bearer ' + token}
+            });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('dashboard-section').style.display = 'block';
+                
+                document.getElementById('user-email').innerText = data.email;
+                document.getElementById('user-balance').innerText = data.balance_usdc.toFixed(4);
+                
+                const keysList = document.getElementById('keys-list');
+                keysList.innerHTML = '';
+                if (data.active_keys.length === 0) {
+                    keysList.innerHTML = '<li style="color: #666; text-align: center;">No active API keys</li>';
+                }
+                data.active_keys.forEach(k => {
+                    const li = document.createElement('li');
+                    li.innerText = k;
+                    keysList.appendChild(li);
+                });
+            } else {
+                logout();
+            }
+        }
+
+        async function generateKey() {
+            const res = await fetch(API_URL + '/portal/keys', {
+                method: 'POST',
+                headers: {'Authorization': 'Bearer ' + token}
+            });
+            if (res.ok) {
+                const data = await res.json();
+                alert("Your new key is: " + data.key + "\n\nStore this safely. You will not be able to see it again.");
+                await fetchDashboard();
+            }
+        }
+
+        async function checkout() {
+            const res = await fetch(API_URL + '/portal/checkout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ amount_usdc: 20.0 })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                
+                var options = {
+                    "key": data.key_id,
+                    "amount": data.amount_inr,
+                    "currency": "INR",
+                    "name": "TRACE API",
+                    "description": "API Credits Top Up",
+                    "order_id": data.order_id,
+                    "handler": function (response){
+                        alert("Payment successful! Refreshing dashboard...");
+                        setTimeout(fetchDashboard, 1500);
+                    },
+                    "theme": {
+                        "color": "#14b8a6"
+                    }
+                };
+                var rzp1 = new Razorpay(options);
+                rzp1.open();
+                
+            } else {
+                const err = await res.json();
+                alert("Checkout failed: " + err.detail);
+            }
+        }
+
+        function logout() {
+            token = null;
+            localStorage.removeItem('trace_token');
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('dashboard-section').style.display = 'none';
+        }
+
+        init();
+    </script>
+</body>
+</html>
