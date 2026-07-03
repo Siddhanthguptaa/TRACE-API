@@ -39,6 +39,11 @@ class APIKeyResponse(BaseModel):
 class CheckoutRequest(BaseModel):
     amount_usdc: float = 20.0
 
+class CheckoutResponse(BaseModel):
+    order_id: str
+    amount_inr: int
+    key_id: str
+
 @router.post("/register", response_model=Token)
 async def register(user: UserAuth, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Developer).filter(Developer.email == user.email))

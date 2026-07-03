@@ -8,6 +8,9 @@ class RoutingDecision(str, Enum):
     ROUTE_WITH_CAUTION = "ROUTE_WITH_CAUTION"
     HOLD = "HOLD"
     INVESTIGATE = "INVESTIGATE"
+    QUARANTINE = "QUARANTINE"
+    DENY = "DENY"
+    REFER = "REFER"
 
 
 class JobContext(BaseModel):
@@ -72,11 +75,31 @@ class ScoringComponents(BaseModel):
     clique_penalty: float
 
 
+class RefreshHint(BaseModel):
+    strategy: str = "volume_decay"
+    temporal_soft_ttl: int
+    temporal_hard_floor: int
+    evaluated_job_count: int
+    evaluated_edge_density: float
+    evaluated_record_refs: List[str] = Field(default_factory=list)
+
+
+class AnchorCommitment(BaseModel):
+    mechanism: str = "anchoring-precedence-ref-v1"
+    timestamp: str
+    root_hash: str
+    proof: str
+    chain_locator: str
+
+
 class TraceScoreResponse(BaseModel):
     provider_id: str
     score: float
     routing_decision: RoutingDecision
     components: ScoringComponents
+    refresh_hint: Optional[RefreshHint] = None
+    evidence_source_count: Optional[int] = None
+    anchor_commitment: Optional[AnchorCommitment] = None
     flags: List[str]
     explanation: str
     latency_ms: float

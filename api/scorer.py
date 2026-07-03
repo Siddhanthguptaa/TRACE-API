@@ -1,5 +1,7 @@
 import time
 import scipy.stats
+import hashlib
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -49,6 +51,9 @@ class TraceScore:
     explanation: str
     latency_ms: float
     cusum_fired: bool
+    refresh_hint: Optional[dict] = None
+    evidence_source_count: Optional[int] = None
+    anchor_commitment: Optional[dict] = None
 
 
 def compute_lcb(successes: int, failures: int) -> float:
@@ -128,8 +133,12 @@ def generate_flags(components: ScoringComponents, cusum_fired: bool) -> List[str
 
 
 def route(score: float, flags: List[str]) -> str:
-    if "SYBIL_RISK_HIGH" in flags or "CUSUM_FIRED" in flags or "CLIQUE_PENALTY_HIGH" in flags:
-        return "INVESTIGATE"
+    if "SYBIL_RISK_HIGH" in flags or "CLIQUE_PENALTY_HIGH" in flags:
+        return "QUARANTINE"
+    if "CUSUM_FIRED" in flags:
+        return "DENY"
+    if "FRAGMENTED_VISIBILITY" in flags:
+        return "REFER"
     if score >= ROUTE_THRESHOLD:
         return "ROUTE"
     if score >= CAUTION_THRESHOLD:
@@ -198,8 +207,44 @@ async def compute_trace_score(
     
     score = max(0.0, min(1.0, raw))
     flags = generate_flags(components, cusum_fired)
+    
+    # RFC 1628 - Dynamic Freshness & Anchoring
+    # For now, simulate evidence source count based on jobs
+    evidence_source_count = max(1, p_hist.completed_jobs // 10)
+    if evidence_source_count < 3 and p_hist.completed_jobs > 0:
+        flags.append("FRAGMENTED_VISIBILITY")
+        
     routing_decision = route(score, flags)
     explanation = generate_explanation(components, flags)
+    
+    # Generate deterministic record refs (simulated for mock context)
+    record_refs = [f"job_{provider_id}_{i}" for i in range(p_hist.completed_jobs)]
+    
+    # Calculate density relative to network (mocking baseline of 1000 nodes for density formula)
+    simulated_density = len(trust_edges) / 1000.0 if trust_edges else 0.0
+    
+    refresh_hint = {
+        "strategy": "volume_decay",
+        "temporal_soft_ttl": 3600 if p_hist.completed_jobs > 50 else 1800,
+        "temporal_hard_floor": 86400 if p_hist.completed_jobs > 50 else 43200,
+        "evaluated_job_count": p_hist.completed_jobs,
+        "evaluated_edge_density": simulated_density,
+        "evaluated_record_refs": record_refs[:50] # cap array for payload size
+    }
+    
+    # Giskard09 anchoring proof
+    hasher = hashlib.sha256()
+    for ref in record_refs:
+        hasher.update(ref.encode('utf-8'))
+    root_hash = hasher.hexdigest()
+    
+    anchor_commitment = {
+        "mechanism": "anchoring-precedence-ref-v1",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "root_hash": root_hash,
+        "proof": "mock_merkle_proof_placeholder",
+        "chain_locator": "Arbitrum-Sepolia"
+    }
     
     latency_ms = (time.perf_counter() - start) * 1000
     
@@ -210,5 +255,8 @@ async def compute_trace_score(
         flags=flags,
         explanation=explanation,
         latency_ms=latency_ms,
-        cusum_fired=cusum_fired
+        cusum_fired=cusum_fired,
+        refresh_hint=refresh_hint,
+        evidence_source_count=evidence_source_count,
+        anchor_commitment=anchor_commitment
     )
