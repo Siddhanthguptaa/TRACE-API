@@ -53,11 +53,15 @@ async def register(user: UserAuth, db: AsyncSession = Depends(get_db)):
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Email already registered")
         
-    hashed = get_password_hash(user.password)
-    dev = Developer(email=user.email, hashed_password=hashed)
-    db.add(dev)
-    await db.commit()
-    await db.refresh(dev)
+    try:
+        hashed = get_password_hash(user.password)
+        dev = Developer(email=user.email, hashed_password=hashed)
+        db.add(dev)
+        await db.commit()
+        await db.refresh(dev)
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=400, detail=f"DB Error: {str(e)} | Trace: {traceback.format_exc()}")
     
     access_token = create_access_token(
         data={"sub": dev.email},

@@ -134,8 +134,13 @@
                 localStorage.setItem('trace_token', token);
                 await fetchDashboard();
             } else {
-                const err = await res.json();
-                alert("Login failed: " + err.detail);
+                let errText = await res.text();
+                try {
+                    let errObj = JSON.parse(errText);
+                    alert("Login failed: " + (errObj.detail || errText));
+                } catch (e) {
+                    alert("Login failed (Server Error): " + errText);
+                }
             }
         }
 
@@ -154,8 +159,13 @@
                 localStorage.setItem('trace_token', token);
                 await fetchDashboard();
             } else {
-                const err = await res.json();
-                alert("Registration failed: " + err.detail);
+                let errText = await res.text();
+                try {
+                    let errObj = JSON.parse(errText);
+                    alert("Registration failed: " + (errObj.detail || errText));
+                } catch (e) {
+                    alert("Registration failed (Server Error): " + errText);
+                }
             }
         }
 
