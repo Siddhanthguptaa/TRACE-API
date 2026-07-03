@@ -13,3 +13,4 @@ pyjwt>=2.8.0
 passlib[bcrypt]>=1.7.4
 razorpay>=1.4.1
 slowapi>=0.1.9
+prometheus-client>=0.25.0
