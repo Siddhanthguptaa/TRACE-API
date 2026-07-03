@@ -18,10 +18,16 @@ app = FastAPI(
 # Serve the static frontend files
 app.mount("/demo", StaticFiles(directory="demo"), name="demo")
 
+from fastapi.responses import RedirectResponse
+
 @app.on_event("startup")
 async def startup_event():
     await init_db()
     asyncio.create_task(background_graph_computation())
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    return RedirectResponse(url="/demo/index.html")
 
 app.add_middleware(
     CORSMiddleware,
