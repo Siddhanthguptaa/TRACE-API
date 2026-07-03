@@ -2,6 +2,9 @@ a2a-js/
 a2a-samples/
 Target_Customers/
 Dataset/
+PitchDeck.md
+research.md
+Source.md
 .env
 trace.db
 __pycache__/
