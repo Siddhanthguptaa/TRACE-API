@@ -46,6 +46,9 @@ class CheckoutResponse(BaseModel):
 
 @router.post("/register", response_model=Token)
 async def register(user: UserAuth, db: AsyncSession = Depends(get_db)):
+    if not user.email.strip() or not user.password.strip():
+        raise HTTPException(status_code=400, detail="Email and password cannot be empty")
+        
     result = await db.execute(select(Developer).filter(Developer.email == user.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Email already registered")

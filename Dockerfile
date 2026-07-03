@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV WORKERS=4
+ENV WORKERS=1
 
 EXPOSE 8000
 
