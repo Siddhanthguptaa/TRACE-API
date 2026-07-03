@@ -4,8 +4,10 @@ from typing import List
 from ..models import ScoringRequest, TraceScoreResponse, RoutingDecision, ScoringComponents
 from ..scorer import compute_trace_score
 from ..auth import verify_api_key, Developer
+from ..metrics import record_score_request
 
 router = APIRouter()
+
 
 @router.post("/score", response_model=TraceScoreResponse)
 async def score_provider(request: ScoringRequest, dev: Developer = Depends(verify_api_key)):
@@ -16,6 +18,24 @@ async def score_provider(request: ScoringRequest, dev: Developer = Depends(verif
             price_usdc=request.job.price_usdc,
             cohort_median_price=request.cohort_median_price,
             provider_capabilities=request.provider_capabilities,
+        )
+
+        # Record metrics
+        components_dict = {
+            "lcb": result.components.lcb,
+            "default_risk": result.components.default_risk,
+            "cost_norm": result.components.cost_norm,
+            "trust_net": result.components.trust_net,
+            "cap_match": result.components.cap_match,
+            "sybil_risk": result.components.sybil_risk,
+            "clique_penalty": result.components.clique_penalty,
+        }
+        record_score_request(
+            provider_id=request.provider_id,
+            routing_decision=result.routing_decision,
+            score=result.score,
+            components=components_dict,
+            latency=result.latency_ms / 1000.0,  # Convert to seconds
         )
 
         return TraceScoreResponse(

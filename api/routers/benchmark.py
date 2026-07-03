@@ -1,21 +1,32 @@
-from fastapi import APIRouter
+import asyncio
+from functools import partial
+from fastapi import APIRouter, Depends, Request
 
 from ..models import BenchmarkRequest, BenchmarkResponse, BenchmarkResult
 from ..simulation import run_simulation
+from ..auth import verify_api_key, Developer
+from ..rate_limit import limiter, RATE_LIMIT_BENCHMARK
 
 
 router = APIRouter()
 
 
 @router.post("/benchmark", response_model=BenchmarkResponse)
-async def run_benchmark(request: BenchmarkRequest):
-    result = run_simulation(
-        scenario=request.scenario,
-        n_agents=request.n_agents,
-        adversary_ratio=request.adversary_ratio,
-        n_rounds=request.n_rounds,
-        n_jobs_per_round=request.n_jobs_per_round,
-        seed=request.seed,
+@limiter.limit(RATE_LIMIT_BENCHMARK)
+async def run_benchmark(request: Request, benchmark_req: BenchmarkRequest, dev: Developer = Depends(verify_api_key)):
+    # Run CPU-heavy simulation in a thread pool to avoid blocking the event loop
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        partial(
+            run_simulation,
+            scenario=benchmark_req.scenario,
+            n_agents=benchmark_req.n_agents,
+            adversary_ratio=benchmark_req.adversary_ratio,
+            n_rounds=benchmark_req.n_rounds,
+            n_jobs_per_round=benchmark_req.n_jobs_per_round,
+            seed=benchmark_req.seed,
+        )
     )
 
     return BenchmarkResponse(
@@ -31,3 +42,4 @@ async def run_benchmark(request: BenchmarkRequest):
         fraud_reduction_vs_behavioral=result["fraud_reduction_vs_behavioral"],
         fraud_reduction_vs_eigentrust=result["fraud_reduction_vs_eigentrust"],
     )
+

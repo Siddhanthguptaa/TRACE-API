@@ -1,14 +1,15 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from ..models import BatchScoringRequest, TraceScoreResponse, RoutingDecision, ScoringComponents
 from ..scorer import compute_trace_score
+from ..auth import verify_api_key, Developer
 
 
 router = APIRouter()
 
 
 @router.post("/score/batch", response_model=list[TraceScoreResponse])
-async def score_batch(request: BatchScoringRequest):
+async def score_batch(request: BatchScoringRequest, dev: Developer = Depends(verify_api_key)):
     results = []
     for req in request.providers:
         try:

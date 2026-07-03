@@ -1,11 +1,40 @@
+# Sensitive
+.env
+trace.db
+
+# External / vendored
 a2a-js/
 a2a-samples/
 Target_Customers/
 Dataset/
+
+# Internal docs (not for public repo)
 PitchDeck.md
 research.md
 Source.md
-.env
-trace.db
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

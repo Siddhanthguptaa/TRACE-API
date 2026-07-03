@@ -11,6 +11,7 @@ from ..auth import (
     get_password_hash, verify_password, create_access_token, 
     generate_api_key, get_current_developer, ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from ..rate_limit import limiter, RATE_LIMIT_AUTH
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_mock")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "mock_secret")
@@ -45,7 +46,8 @@ class CheckoutResponse(BaseModel):
     key_id: str
 
 @router.post("/register", response_model=Token)
-async def register(user: UserAuth, db: AsyncSession = Depends(get_db)):
+@limiter.limit(RATE_LIMIT_AUTH)
+async def register(request: Request, user: UserAuth, db: AsyncSession = Depends(get_db)):
     if not user.email.strip() or not user.password.strip():
         raise HTTPException(status_code=400, detail="Email and password cannot be empty")
         
@@ -70,7 +72,8 @@ async def register(user: UserAuth, db: AsyncSession = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login", response_model=Token)
-async def login(user: UserAuth, db: AsyncSession = Depends(get_db)):
+@limiter.limit(RATE_LIMIT_AUTH)
+async def login(request: Request, user: UserAuth, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Developer).filter(Developer.email == user.email))
     dev = result.scalars().first()
     if not dev or not verify_password(user.password, dev.hashed_password):
@@ -161,6 +164,15 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
             dev = result.scalars().first()
             if dev:
                 dev.balance_usdc += amount_usdc
+                # Record top-up in audit trail
+                from ..database import BillingTransaction
+                txn = BillingTransaction(
+                    developer_id=dev.id,
+                    amount_usdc=amount_usdc,
+                    balance_after=dev.balance_usdc,
+                    transaction_type="top_up",
+                )
+                db.add(txn)
                 await db.commit()
             
     return {"status": "success"}

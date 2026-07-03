@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Literal
 from enum import Enum
 
@@ -44,8 +44,8 @@ class ScoringRequest(BaseModel):
 
 class EventReport(BaseModel):
     provider_id: str
-    buyer_id: Optional[str] = None
-    job_id: Optional[str] = None
+    buyer_id: str  # Required - who transacted with the provider
+    job_id: str    # Required - for deduplication
     capability: Optional[str] = None
     price_usdc: Optional[float] = None
     success: bool
@@ -58,7 +58,8 @@ class EventReportResponse(BaseModel):
 class BatchScoringRequest(BaseModel):
     providers: List[ScoringRequest] = Field(default_factory=list)
 
-    @validator('providers')
+    @field_validator('providers')
+    @classmethod
     def max_providers(cls, v):
         if len(v) > 100:
             raise ValueError('Maximum 100 providers per batch request')

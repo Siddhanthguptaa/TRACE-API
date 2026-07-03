@@ -55,7 +55,7 @@ class TRACEMiddleware:
                         "price_usdc": price_usdc,
                     },
                 },
-                headers={"X-API-Key": self.api_key},
+                headers={"Authorization": f"Bearer {self.api_key}"},
                 timeout=5.0,
             )
 
@@ -98,6 +98,6 @@ class TRACEMiddleware:
                     "capability": job_capability,
                     "price_usdc": price_usdc,
                 },
-                headers={"X-API-Key": self.api_key},
+                headers={"Authorization": f"Bearer {self.api_key}"},
                 timeout=5.0,
             )

@@ -56,7 +56,7 @@ export class TRACEMiddleware {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": this.apiKey,
+        "Authorization": `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
         provider_id: agentWallet,

@@ -4,11 +4,21 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      - WORKERS=4
+      # IMPORTANT: Keep WORKERS=1 until shared state backend (Redis/PostgreSQL) is implemented.
+      # Multiple workers create independent trust graphs that never sync.
+      - WORKERS=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   demo:
     image: nginx:alpine
     ports:
       - "3000:80"
     volumes:
       - ./demo:/usr/share/nginx/html:ro
+
