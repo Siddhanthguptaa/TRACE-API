@@ -4,66 +4,484 @@
     <meta charset="UTF-8">
     <title>TRACE - Developer Portal</title>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        /* ══════════════════════════════════════════════════
+           TRACE Design System Tokens (matches index.html)
+           ══════════════════════════════════════════════════ */
+
         :root {
+            /* Color tokens */
+            --color-surface-base: #000000;
+            --color-surface-strong: #ffffff;
+            --color-surface-card: #0a0a0a;
+            --color-surface-elevated: #111111;
+            --color-surface-input: #0d0d0d;
+            --color-text-primary: #f1f1f1;
+            --color-text-secondary: #a0a0a0;
+            --color-text-muted: #666666;
+            --color-border-default: rgba(241, 241, 241, 0.10);
+            --color-border-strong: rgba(241, 241, 241, 0.25);
+            --color-border-focus: #14b8a6;
+
+            /* Brand / signal colors */
             --color-trace: #14b8a6;
-            --color-text-muted: #9ca3af;
+            --color-trace-dim: rgba(20, 184, 166, 0.15);
+            --color-trace-glow: rgba(20, 184, 166, 0.30);
+
+            /* Typography tokens */
+            --font-family-primary: 'Inter', 'Lay Grotesk', Arial, sans-serif;
+            --font-size-xs: 11.52px;
+            --font-size-sm: 12.29px;
+            --font-size-md: 13.06px;
+            --font-size-lg: 13.82px;
+            --font-size-xl: 15.36px;
+            --font-size-2xl: 40.7px;
+            --font-size-3xl: 53.76px;
+            --font-size-4xl: 58.37px;
+            --font-weight-base: 500;
+            --font-weight-bold: 700;
+            --font-weight-heavy: 800;
+            --line-height-base: 1.5;
+            --line-height-tight: 1.1;
+
+            /* Spacing tokens */
+            --space-1: 1px;
+            --space-2: 4.84px;
+            --space-3: 5.76px;
+            --space-4: 6px;
+            --space-5: 8px;
+            --space-6: 8.64px;
+            --space-7: 9.83px;
+            --space-8: 10px;
+            --space-12: 16px;
+            --space-16: 24px;
+            --space-20: 32px;
+            --space-24: 40px;
+            --space-32: 56px;
+            --space-40: 72px;
+            --space-48: 96px;
+
+            /* Radius tokens */
+            --radius-xs: 3.84px;
+            --radius-sm: 4px;
+            --radius-md: 4.61px;
+            --radius-lg: 4.9px;
+            --radius-xl: 6.14px;
+            --radius-2xl: 8px;
+            --radius-pill: 100px;
+
+            /* Shadow tokens */
+            --shadow-card: rgba(0, 0, 0, 0.35) 0px 32.64px 80px 0px;
+            --shadow-glow: 0 0 40px rgba(20, 184, 166, 0.08);
+
+            /* Motion tokens */
+            --motion-instant: 200ms;
+            --motion-fast: 350ms;
+            --motion-normal: 400ms;
+            --motion-slow: 450ms;
+            --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
         }
-        body {
-            background-color: #050505;
-            color: #f3f4f6;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+        /* ══════════════════════════════════════════════════
+           Reset & Base
+           ══════════════════════════════════════════════════ */
+
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
-        }
-        h2, h3, p, span {
-            color: #f3f4f6;
-        }
-        .portal-card {
-            background: rgba(13, 14, 21, 0.9);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 32px;
-            max-width: 500px;
-            margin: 100px auto;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 16px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            color: #fff;
             box-sizing: border-box;
         }
-        button {
+
+        html {
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background-color: var(--color-surface-base);
+            color: var(--color-text-primary);
+            font-family: var(--font-family-primary);
+            font-weight: var(--font-weight-base);
+            line-height: var(--line-height-base);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ══════════════════════════════════════════════════
+           Layout
+           ══════════════════════════════════════════════════ */
+
+        .container {
             width: 100%;
-            padding: 12px;
-            background: var(--color-trace);
-            border: none;
-            border-radius: 8px;
-            color: #000;
-            font-weight: 600;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: var(--space-32) var(--space-16);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* ══════════════════════════════════════════════════
+           Portal Card
+           ══════════════════════════════════════════════════ */
+
+        .portal-card {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-border-default);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-24) var(--space-20);
+            box-shadow: var(--shadow-card);
+            width: 100%;
+            animation: fadeIn var(--motion-normal) var(--motion-ease);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ══════════════════════════════════════════════════
+           Typography
+           ══════════════════════════════════════════════════ */
+
+        h1 {
+            font-size: var(--font-size-2xl);
+            font-weight: var(--font-weight-heavy);
+            line-height: var(--line-height-tight);
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-4);
+        }
+
+        h2 {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-bold);
+            line-height: var(--line-height-tight);
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-4);
+        }
+
+        h3 {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            line-height: var(--line-height-tight);
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-3);
+        }
+
+        p {
+            font-size: var(--font-size-md);
+            line-height: var(--line-height-base);
+            color: var(--color-text-secondary);
+            margin: 0;
+        }
+
+        .text-muted {
+            color: var(--color-text-muted);
+            font-size: var(--font-size-sm);
+        }
+
+        /* ══════════════════════════════════════════════════
+           Form Elements
+           ══════════════════════════════════════════════════ */
+
+        .form-group {
+            margin-bottom: var(--space-12);
+        }
+
+        label {
+            display: block;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-4);
+        }
+
+        input {
+            width: 100%;
+            padding: var(--space-8) var(--space-12);
+            background: var(--color-surface-input);
+            border: 1px solid var(--color-border-default);
+            border-radius: var(--radius-lg);
+            color: var(--color-text-primary);
+            font-family: var(--font-family-primary);
+            font-size: var(--font-size-md);
+            font-weight: var(--font-weight-base);
+            transition: border-color var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) var(--motion-ease);
+        }
+
+        input::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--color-border-focus);
+            box-shadow: 0 0 0 3px var(--color-trace-dim);
+        }
+
+        input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ══════════════════════════════════════════════════
+           Buttons
+           ══════════════════════════════════════════════════ */
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-4);
+            width: 100%;
+            padding: var(--space-8) var(--space-16);
+            border-radius: var(--radius-lg);
+            font-family: var(--font-family-primary);
+            font-size: var(--font-size-md);
+            font-weight: var(--font-weight-bold);
             cursor: pointer;
-            margin-bottom: 12px;
+            transition: all var(--motion-fast) var(--motion-ease);
+            border: none;
+            text-decoration: none;
         }
-        button.secondary {
-            background: rgba(255,255,255,0.1);
-            color: #fff;
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
+
+        .btn-primary {
+            background: var(--color-trace);
+            color: #000000;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #0faa96;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: var(--color-surface-elevated);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border-default);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--color-surface-input);
+            border-color: var(--color-border-strong);
+        }
+
+        .btn-sm {
+            width: auto;
+            padding: var(--space-4) var(--space-12);
+            font-size: var(--font-size-sm);
+        }
+
+        /* ══════════════════════════════════════════════════
+           Button Group
+           ══════════════════════════════════════════════════ */
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-8);
+        }
+
+        /* ══════════════════════════════════════════════════
+           Key List
+           ══════════════════════════════════════════════════ */
+
         .key-list {
             list-style: none;
             padding: 0;
-            margin: 0 0 20px 0;
+            margin: 0;
         }
+
         .key-list li {
-            font-family: monospace;
-            background: rgba(255,255,255,0.05);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 8px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: var(--font-size-sm);
+            background: var(--color-surface-input);
+            border: 1px solid var(--color-border-default);
+            padding: var(--space-8) var(--space-12);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-6);
             word-break: break-all;
+            color: var(--color-text-primary);
+            transition: border-color var(--motion-fast) var(--motion-ease);
+        }
+
+        .key-list li:hover {
+            border-color: var(--color-border-strong);
+        }
+
+        .key-list .key-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-2);
+        }
+
+        .key-list .key-prefix {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: var(--font-size-sm);
+            color: var(--color-trace);
+        }
+
+        .key-list .key-status {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ══════════════════════════════════════════════════
+           Balance Card
+           ══════════════════════════════════════════════════ */
+
+        .balance-card {
+            background: var(--color-trace-dim);
+            border: 1px solid var(--color-trace);
+            border-radius: var(--radius-xl);
+            padding: var(--space-20) var(--space-16);
+            margin-bottom: var(--space-20);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-12);
+        }
+
+        .balance-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .balance-label {
+            font-size: var(--font-size-xs);
+            color: var(--color-trace);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: var(--font-weight-bold);
+        }
+
+        .balance-amount {
+            font-size: var(--font-size-3xl);
+            font-weight: var(--font-weight-heavy);
+            line-height: var(--line-height-tight);
+            color: var(--color-surface-strong);
+            margin: 0;
+        }
+
+        /* ══════════════════════════════════════════════════
+           Divider
+           ══════════════════════════════════════════════════ */
+
+        .divider {
+            margin: var(--space-24) 0;
+            border: none;
+            border-top: 1px solid var(--color-border-default);
+        }
+
+        /* ══════════════════════════════════════════════════
+           Section Header
+           ══════════════════════════════════════════════════ */
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--space-16);
+            flex-wrap: wrap;
+            gap: var(--space-12);
+        }
+
+        .section-title {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        /* ══════════════════════════════════════════════════
+           Header
+           ══════════════════════════════════════════════════ */
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-16);
+            padding-bottom: var(--space-16);
+            border-bottom: 1px solid var(--color-border-default);
+        }
+
+        .header-title {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-heavy);
+            color: var(--color-text-primary);
+        }
+
+        .header-email {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-muted);
+        }
+
+        /* ══════════════════════════════════════════════════
+           Alert / Error
+           ══════════════════════════════════════════════════ */
+
+        .alert {
+            padding: var(--space-12) var(--space-16);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-16);
+            font-size: var(--font-size-sm);
+            animation: slideDown var(--motion-fast) var(--motion-ease);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .alert-success {
+            background: var(--color-trace-dim);
+            border: 1px solid var(--color-trace);
+            color: var(--color-trace);
+        }
+
+        /* ══════════════════════════════════════════════════
+           Hidden utility
+           ══════════════════════════════════════════════════ */
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* ══════════════════════════════════════════════════
+           Focus visible for accessibility
+           ══════════════════════════════════════════════════ */
+
+        *:focus-visible {
+            outline: 2px solid var(--color-border-focus);
+            outline-offset: 2px;
         }
     </style>
 </head>
@@ -71,41 +489,58 @@
     <div class="container">
         <!-- Auth Section -->
         <div id="auth-section" class="portal-card">
-            <h2 style="margin-top: 0;">Developer Portal</h2>
-            <p style="color: var(--color-text-muted); margin-bottom: 24px;">Sign in to manage your TRACE API keys and balance.</p>
-            
-            <input type="email" id="email" placeholder="Email Address">
-            <input type="password" id="password" placeholder="Password">
-            
-            <button onclick="login()">Log In</button>
-            <button onclick="register()" class="secondary">Create Account</button>
+            <h2>Developer Portal</h2>
+            <p class="text-muted">Sign in to manage your TRACE API keys and balance.</p>
+
+            <div id="auth-error" class="alert alert-error hidden"></div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="you@company.com" autocomplete="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="login()">Log In</button>
+                <button class="btn btn-secondary" onclick="register()">Create Account</button>
+            </div>
         </div>
-        
+
         <!-- Dashboard Section -->
-        <div id="dashboard-section" class="portal-card" style="display:none; max-width: 700px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;">
+        <div id="dashboard-section" class="portal-card hidden">
+            <header class="header">
                 <div>
-                    <h2 style="margin: 0;">Dashboard</h2>
-                    <p style="color: var(--color-text-muted); margin-top: 4px;" id="user-email"></p>
+                    <h1 class="header-title">Dashboard</h1>
+                    <p class="header-email" id="user-email"></p>
                 </div>
-                <button onclick="logout()" class="secondary" style="width: auto; padding: 8px 16px;">Logout</button>
-            </div>
-            
-            <div style="background: rgba(20, 184, 166, 0.1); border: 1px solid var(--color-trace); border-radius: 8px; padding: 24px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <p style="margin: 0; color: var(--color-trace); font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px;">Available Credits</p>
-                    <h1 style="margin: 4px 0 0 0;">$<span id="user-balance">0.00</span></h1>
+                <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+            </header>
+
+            <div class="balance-card">
+                <div class="balance-info">
+                    <span class="balance-label">Available Credits</span>
+                    <p class="balance-amount">$<span id="user-balance">0.00</span></p>
                 </div>
-                <button onclick="checkout()" style="width: auto; padding: 12px 24px; margin: 0;">Top Up $20</button>
+                <button class="btn btn-primary btn-sm" onclick="checkout()">Top Up $20</button>
             </div>
-            
-            <hr style="margin: 32px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h3 style="margin: 0;">API Keys</h3>
-                <button onclick="generateKey()" style="width: auto; padding: 8px 16px; margin: 0;">+ New Key</button>
+
+            <hr class="divider">
+
+            <div class="section-header">
+                <div class="section-title">
+                    <h3>API Keys</h3>
+                    <p class="text-muted" style="margin: 0;">Active keys for authentication</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="generateKey()">+ New Key</button>
             </div>
+
             <ul id="keys-list" class="key-list"></ul>
+
+            <div id="key-error" class="alert alert-error hidden"></div>
         </div>
     </div>
 
@@ -119,138 +554,261 @@
             }
         }
 
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.remove('hidden');
+        }
+
+        function hideError(elementId) {
+            const el = document.getElementById(elementId);
+            el.classList.add('hidden');
+        }
+
+        function showAuthSection() {
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('dashboard-section').classList.add('hidden');
+        }
+
+        function showDashboardSection() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+        }
+
         async function login() {
-            const res = await fetch(API_URL + '/portal/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    email: document.getElementById('email').value,
-                    password: document.getElementById('password').value
-                })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                token = data.access_token;
-                localStorage.setItem('trace_token', token);
-                await fetchDashboard();
-            } else {
-                let errText = await res.text();
-                try {
-                    let errObj = JSON.parse(errText);
-                    alert("Login failed: " + (errObj.detail || errText));
-                } catch (e) {
-                    alert("Login failed (Server Error): " + errText);
+            hideError('auth-error');
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showError('auth-error', 'Please enter both email and password');
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+
+            try {
+                const res = await fetch(API_URL + '/portal/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    token = data.access_token;
+                    localStorage.setItem('trace_token', token);
+                    await fetchDashboard();
+                } else {
+                    let errText = await res.text();
+                    try {
+                        const errObj = JSON.parse(errText);
+                        showError('auth-error', 'Login failed: ' + (errObj.detail || errText));
+                    } catch (e) {
+                        showError('auth-error', 'Login failed (Server Error): ' + errText);
+                    }
                 }
+            } catch (e) {
+                showError('auth-error', 'Network error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Log In';
             }
         }
 
         async function register() {
-            const res = await fetch(API_URL + '/portal/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    email: document.getElementById('email').value,
-                    password: document.getElementById('password').value
-                })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                token = data.access_token;
-                localStorage.setItem('trace_token', token);
-                await fetchDashboard();
-            } else {
-                let errText = await res.text();
-                try {
-                    let errObj = JSON.parse(errText);
-                    alert("Registration failed: " + (errObj.detail || errText));
-                } catch (e) {
-                    alert("Registration failed (Server Error): " + errText);
-                }
+            hideError('auth-error');
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showError('auth-error', 'Please enter both email and password');
+                return;
             }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Creating account...';
+
+            try {
+                const res = await fetch(API_URL + '/portal/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    token = data.access_token;
+                    localStorage.setItem('trace_token', token);
+                    await fetchDashboard();
+                } else {
+                    let errText = await res.text();
+                    try {
+                        const errObj = JSON.parse(errText);
+                        showError('auth-error', 'Registration failed: ' + (errObj.detail || errText));
+                    } catch (e) {
+                        showError('auth-error', 'Registration failed (Server Error): ' + errText);
+                    }
+                }
+            } catch (e) {
+                showError('auth-error', 'Network error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+            }
+        }
+
+        async function logout() {
+            token = null;
+            localStorage.removeItem('trace_token');
+            showAuthSection();
         }
 
         async function fetchDashboard() {
-            const res = await fetch(API_URL + '/portal/me', {
-                headers: {'Authorization': 'Bearer ' + token}
-            });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('dashboard-section').style.display = 'block';
-                
-                document.getElementById('user-email').innerText = data.email;
-                document.getElementById('user-balance').innerText = data.balance_usdc.toFixed(4);
-                
-                const keysList = document.getElementById('keys-list');
-                keysList.innerHTML = '';
-                if (data.active_keys.length === 0) {
-                    keysList.innerHTML = '<li style="color: #666; text-align: center;">No active API keys</li>';
-                }
-                data.active_keys.forEach(k => {
-                    const li = document.createElement('li');
-                    li.innerText = k;
-                    keysList.appendChild(li);
+            try {
+                const res = await fetch(API_URL + '/portal/me', {
+                    headers: {'Authorization': 'Bearer ' + token}
                 });
-            } else {
-                logout();
+
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('user-email').textContent = data.email;
+                    document.getElementById('user-balance').textContent = data.balance_usdc.toFixed(2);
+                    renderKeys(data.active_keys);
+                    showDashboardSection();
+                } else if (res.status === 401) {
+                    token = null;
+                    localStorage.removeItem('trace_token');
+                    showAuthSection();
+                } else {
+                    console.error('Dashboard fetch failed:', res.status);
+                    showAuthSection();
+                }
+            } catch (e) {
+                console.error('Dashboard fetch error:', e);
+                showAuthSection();
             }
         }
 
+        function renderKeys(keys) {
+            const list = document.getElementById('keys-list');
+            if (!keys || keys.length === 0) {
+                list.innerHTML = '<li style="color: var(--color-text-muted); text-align: center; padding: var(--space-20);">No API keys yet. Create one to get started.</li>';
+                return;
+            }
+            list.innerHTML = keys.map(prefix => `
+                <li>
+                    <div class="key-meta">
+                        <span class="key-prefix">${prefix}</span>
+                        <span class="key-status">Active</span>
+                    </div>
+                </li>
+            `).join('');
+        }
+
         async function generateKey() {
-            const res = await fetch(API_URL + '/portal/keys', {
-                method: 'POST',
-                headers: {'Authorization': 'Bearer ' + token}
-            });
-            if (res.ok) {
-                const data = await res.json();
-                alert("Your new key is: " + data.key + "\n\nStore this safely. You will not be able to see it again.");
-                await fetchDashboard();
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            try {
+                const res = await fetch(API_URL + '/portal/keys', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    alert('New API Key (save this - it won\'t be shown again):\n\n' + data.key);
+                    await fetchDashboard();
+                } else {
+                    let errText = await res.text();
+                    try {
+                        const errObj = JSON.parse(errText);
+                        showError('key-error', 'Failed to generate key: ' + (errObj.detail || errText));
+                    } catch (e) {
+                        showError('key-error', 'Failed to generate key: ' + errText);
+                    }
+                }
+            } catch (e) {
+                showError('key-error', 'Network error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '+ New Key';
             }
         }
 
         async function checkout() {
-            const res = await fetch(API_URL + '/portal/checkout', {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ amount_usdc: 20.0 })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                
-                var options = {
-                    "key": data.key_id,
-                    "amount": data.amount_inr,
-                    "currency": "INR",
-                    "name": "TRACE API",
-                    "description": "API Credits Top Up",
-                    "order_id": data.order_id,
-                    "handler": function (response){
-                        alert("Payment successful! Refreshing dashboard...");
-                        setTimeout(fetchDashboard, 1500);
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+
+            try {
+                const res = await fetch(API_URL + '/portal/checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
                     },
-                    "theme": {
-                        "color": "#14b8a6"
+                    body: JSON.stringify({amount_usdc: 20})
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const options = {
+                        key: data.key_id,
+                        amount: data.amount_inr,
+                        currency: 'INR',
+                        name: 'TRACE',
+                        description: 'Top up $20 TRACE credits',
+                        order_id: data.order_id,
+                        handler: async function (response) {
+                            const verifyRes = await fetch(API_URL + '/portal/webhook', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify(response)
+                            });
+                            if (verifyRes.ok) {
+                                alert('Top up successful! Credits added to your account.');
+                                await fetchDashboard();
+                            } else {
+                                alert('Payment verification failed. Please contact support.');
+                            }
+                        },
+                        prefill: {},
+                        theme: {color: '#14b8a6'},
+                        modal: {
+                            ondismiss: function () {
+                                console.log('Checkout dismissed');
+                            }
+                        }
+                    };
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                } else {
+                    let errText = await res.text();
+                    try {
+                        const errObj = JSON.parse(errText);
+                        showError('key-error', 'Checkout failed: ' + (errObj.detail || errText));
+                    } catch (e) {
+                        showError('key-error', 'Checkout failed: ' + errText);
                     }
-                };
-                var rzp1 = new Razorpay(options);
-                rzp1.open();
-                
-            } else {
-                const err = await res.json();
-                alert("Checkout failed: " + err.detail);
+                }
+            } catch (e) {
+                showError('key-error', 'Network error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Top Up $20';
             }
         }
 
-        function logout() {
-            token = null;
-            localStorage.removeItem('trace_token');
-            document.getElementById('auth-section').style.display = 'block';
-            document.getElementById('dashboard-section').style.display = 'none';
-        }
-
+        // Initialize on load
         init();
     </script>
 </body>
