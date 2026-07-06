@@ -1,6 +1,7 @@
 # Sensitive
 .env
 trace.db
+*.tfvars
 
 # External / vendored
 a2a-js/
@@ -28,6 +29,11 @@ build/
 htmlcov/
 .coverage
 
+# Terraform
+terraform/.terraform/
+terraform/terraform.tfstate*
+terraform/.terraform.lock.hcl
+
 # IDE
 .vscode/
 .idea/
@@ -38,3 +44,6 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent customizations
+.agents/

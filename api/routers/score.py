@@ -1,23 +1,25 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+import logging
+from fastapi import APIRouter, HTTPException, Depends, Request
 
 from ..models import ScoringRequest, TraceScoreResponse, RoutingDecision, ScoringComponents
 from ..scorer import compute_trace_score
 from ..auth import verify_api_key, Developer
 from ..metrics import record_score_request
 
+logger = logging.getLogger("trace.api")
+
 router = APIRouter()
 
 
 @router.post("/score", response_model=TraceScoreResponse)
-async def score_provider(request: ScoringRequest, dev: Developer = Depends(verify_api_key)):
+async def score_provider(request: Request, scoring_req: ScoringRequest, dev: Developer = Depends(verify_api_key)):
     try:
         result = await compute_trace_score(
-            provider_id=request.provider_id,
-            job_capability=request.job.capability,
-            price_usdc=request.job.price_usdc,
-            cohort_median_price=request.cohort_median_price,
-            provider_capabilities=request.provider_capabilities,
+            provider_id=scoring_req.provider_id,
+            job_capability=scoring_req.job.capability,
+            price_usdc=scoring_req.job.price_usdc,
+            cohort_median_price=scoring_req.cohort_median_price,
+            provider_capabilities=scoring_req.provider_capabilities,
         )
 
         # Record metrics
@@ -31,7 +33,7 @@ async def score_provider(request: ScoringRequest, dev: Developer = Depends(verif
             "clique_penalty": result.components.clique_penalty,
         }
         record_score_request(
-            provider_id=request.provider_id,
+            provider_id=scoring_req.provider_id,
             routing_decision=result.routing_decision,
             score=result.score,
             components=components_dict,
@@ -39,7 +41,7 @@ async def score_provider(request: ScoringRequest, dev: Developer = Depends(verif
         )
 
         return TraceScoreResponse(
-            provider_id=request.provider_id,
+            provider_id=scoring_req.provider_id,
             score=result.score,
             routing_decision=RoutingDecision(result.routing_decision),
             components=ScoringComponents(
@@ -60,4 +62,5 @@ async def score_provider(request: ScoringRequest, dev: Developer = Depends(verif
             version="1.0.0",
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Score computation failed for provider {scoring_req.provider_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal scoring error")

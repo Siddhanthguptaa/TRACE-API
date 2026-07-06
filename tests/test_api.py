@@ -4,7 +4,7 @@ import asyncio
 import uuid
 from api.main import app
 from api.database import init_db, AsyncSessionLocal, Developer, APIKey
-from api.auth import get_password_hash, generate_api_key, hash_api_key
+from api.auth import generate_api_key, hash_api_key
 
 
 # httpx 0.28+ requires ASGITransport + AsyncClient
@@ -17,14 +17,16 @@ async def _setup_test_developer():
     async with AsyncSessionLocal() as session:
         from sqlalchemy.future import select
 
+        test_id = "test-dev-uuid-001"
+
         # Check if test dev already exists
-        result = await session.execute(select(Developer).filter(Developer.email == "test@trace.dev"))
+        result = await session.execute(select(Developer).filter(Developer.id == test_id))
         dev = result.scalars().first()
         
         if not dev:
             dev = Developer(
+                id=test_id,
                 email="test@trace.dev",
-                hashed_password=get_password_hash("testpass"),
                 balance_usdc=100.0,  # Enough for many test calls
             )
             session.add(dev)
@@ -185,7 +187,7 @@ def test_events_endpoint(api_key):
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
             payload = {
                 "provider_id": "0xevent_test",
-                "buyer_id": "buyer_0",
+                "buyer_id": "test-dev-uuid-001",
                 "job_id": f"job_event_{uuid.uuid4().hex[:8]}",
                 "success": True,
                 "capability": "summarize",
@@ -223,7 +225,7 @@ def test_full_flow(api_key):
             # Event
             event_payload = {
                 "provider_id": "0xflow_test",
-                "buyer_id": "buyer_0",
+                "buyer_id": "test-dev-uuid-001",
                 "job_id": f"job_flow_{uuid.uuid4().hex[:8]}",
                 "success": True,
             }

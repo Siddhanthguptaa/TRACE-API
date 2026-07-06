@@ -34,6 +34,11 @@ class TRACEMiddleware:
         self.api_key = api_key
         self.min_score = min_score
         self.api_url = api_url
+        self._client = httpx.AsyncClient()
+
+    async def close(self):
+        """Close the underlying HTTP client."""
+        await self._client.aclose()
 
     async def check(
         self,
@@ -45,19 +50,18 @@ class TRACEMiddleware:
         Call before processing x402 payment.
         Returns score dict or raises HTTPException(402) if agent is untrusted.
         """
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{self.api_url}/v1/score",
-                json={
-                    "provider_id": agent_wallet,
-                    "job": {
-                        "capability": job_capability,
-                        "price_usdc": price_usdc,
-                    },
+        resp = await self._client.post(
+            f"{self.api_url}/v1/score",
+            json={
+                "provider_id": agent_wallet,
+                "job": {
+                    "capability": job_capability,
+                    "price_usdc": price_usdc,
                 },
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=5.0,
-            )
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=5.0,
+        )
 
         result = resp.json()
 
@@ -88,16 +92,15 @@ class TRACEMiddleware:
         """
         Report the outcome of a job back to TRACE to update the agent's trust score.
         """
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{self.api_url}/v1/events",
-                json={
-                    "provider_id": agent_wallet,
-                    "buyer_id": buyer_wallet,
-                    "success": success,
-                    "capability": job_capability,
-                    "price_usdc": price_usdc,
-                },
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=5.0,
-            )
+        await self._client.post(
+            f"{self.api_url}/v1/events",
+            json={
+                "provider_id": agent_wallet,
+                "buyer_id": buyer_wallet,
+                "success": success,
+                "capability": job_capability,
+                "price_usdc": price_usdc,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=5.0,
+        )

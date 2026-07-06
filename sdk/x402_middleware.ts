@@ -92,6 +92,19 @@ export class TRACEMiddleware {
   }
 }
 
+export interface ExpressRequest {
+  headers: Record<string, string | string[] | undefined>;
+  body?: any;
+  traceScore?: TraceScoreResult;
+}
+
+export interface ExpressResponse {
+  status: (code: number) => ExpressResponse;
+  json: (body: any) => void;
+}
+
+export type ExpressNext = (err?: any) => void;
+
 /**
  * Express middleware factory.
  *
@@ -102,7 +115,7 @@ export class TRACEMiddleware {
 export function traceGate(options: TRACEMiddlewareOptions) {
   const trace = new TRACEMiddleware(options);
 
-  return async (req: any, res: any, next: any) => {
+  return async (req: ExpressRequest, res: ExpressResponse, next: ExpressNext) => {
     const agentWallet =
       req.headers["x-payment-sender"] || req.headers["x-agent-wallet"];
     const capability = req.body?.capability ?? "default";

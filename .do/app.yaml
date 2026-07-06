@@ -1,0 +1,43 @@
+# DigitalOcean App Platform Spec
+# https://docs.digitalocean.com/products/app-platform/reference/app-spec/
+
+name: trace-api
+region: blr  # Bangalore (closest to India)
+
+services:
+  - name: api
+    dockerfile_path: Dockerfile
+    github:
+      repo: NikunjKaushik20/TRACE-API
+      branch: main
+      deploy_on_push: true
+    instance_count: 1
+    instance_size_slug: basic-xxs  # $5/mo — 512MB RAM, 1 vCPU
+    http_port: 8000
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 15
+      period_seconds: 30
+    envs:
+      - key: WORKERS
+        value: "2"
+      - key: DATABASE_URL
+        type: SECRET
+      - key: SUPABASE_URL
+        type: SECRET
+      - key: SUPABASE_KEY
+        type: SECRET
+      - key: SUPABASE_JWT_SECRET
+        type: SECRET
+      - key: RAZORPAY_KEY_ID
+        type: SECRET
+      - key: RAZORPAY_KEY_SECRET
+        type: SECRET
+      - key: RAZORPAY_WEBHOOK_SECRET
+        type: SECRET
+      - key: CELERY_BROKER_URL
+        type: SECRET
+      - key: REDIS_URL
+        type: SECRET
+      - key: CORS_ORIGINS
+        value: "https://yourdomain.com"

@@ -6,25 +6,41 @@ Protects against:
 - Event spam / trust graph poisoning (120/min)
 - Benchmark CPU DoS (5/min)
 - General API abuse (60/min default)
+
+Uses Redis as backend in production. Falls back to in-memory storage
+for local development when Redis is unavailable.
 """
 
-import os
+import logging
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from .config import settings
 
-limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger("trace.rate_limit")
 
+# Try Redis first, fall back to in-memory for local dev
+try:
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri=settings.redis_url
+    )
+    logger.info(f"Rate limiter using Redis: {settings.redis_url}")
+except Exception as e:
+    logger.warning(f"Redis unavailable for rate limiting ({e}), falling back to in-memory storage")
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri="memory://"
+    )
 
 # Rate limit strings — override via environment
-RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "60/minute")
-RATE_LIMIT_AUTH = os.getenv("RATE_LIMIT_AUTH", "10/minute")
-RATE_LIMIT_EVENTS = os.getenv("RATE_LIMIT_EVENTS", "120/minute")
-RATE_LIMIT_BENCHMARK = os.getenv("RATE_LIMIT_BENCHMARK", "5/minute")
-
+RATE_LIMIT_DEFAULT = settings.rate_limit_default
+RATE_LIMIT_AUTH = settings.rate_limit_auth
+RATE_LIMIT_EVENTS = settings.rate_limit_events
+RATE_LIMIT_BENCHMARK = settings.rate_limit_benchmark
 
 async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(

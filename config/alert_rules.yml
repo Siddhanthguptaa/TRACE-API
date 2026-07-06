@@ -1,0 +1,71 @@
+groups:
+  - name: trace_api_alerts
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate: {{ $value | humanizePercentage }} of requests failing"
+          description: "More than 5% of requests are returning 5xx errors over the last 5 minutes."
+
+      # P99 latency spike
+      - alert: HighLatencyP99
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99 latency above 5s: {{ $value | humanizeDuration }}"
+          description: "99th percentile request latency has exceeded 5 seconds."
+
+      # Rate limiting saturation
+      - alert: RateLimitSaturation
+        expr: rate(trace_rate_limit_exceeded_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limiting saturated: {{ $value }} rejections/sec"
+          description: "More than 10 requests per second are being rate limited."
+
+      # Worker failures
+      - alert: WorkerFailures
+        expr: rate(trace_worker_runs_total{status="error"}[10m]) > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Background worker failing consistently"
+          description: "The graph processing worker has been failing for the last 10 minutes."
+
+      # Low developer balance (any developer below $1)
+      - alert: LowDeveloperBalance
+        expr: trace_developer_balance_usdc < 1.0
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "Developer {{ $labels.developer_id }} has low balance: ${{ $value }}"
+
+      # API down
+      - alert: APIDown
+        expr: up{job="trace_api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TRACE API is unreachable"
+          description: "Prometheus cannot scrape the TRACE API metrics endpoint."
+
+      # Score latency degradation
+      - alert: ScoreLatencyHigh
+        expr: histogram_quantile(0.95, rate(trace_score_latency_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Score computation P95 latency above 500ms"
+          description: "Trust score computation is taking longer than expected."
