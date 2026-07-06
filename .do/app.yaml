@@ -36,8 +36,15 @@ services:
       - key: RAZORPAY_WEBHOOK_SECRET
         type: SECRET
       - key: CELERY_BROKER_URL
-        type: SECRET
+        value: ${trace-redis.DATABASE_URL}
       - key: REDIS_URL
-        type: SECRET
+        value: ${trace-redis.DATABASE_URL}
       - key: CORS_ORIGINS
         value: "https://yourdomain.com"
+
+databases:
+  - name: trace-redis
+    engine: REDIS
+    num_nodes: 1
+    size_slug: db-s-1vcpu-1gb
+    version: "7"
