@@ -19,6 +19,12 @@ if "postgresql" in DATABASE_URL:
     engine_kwargs["pool_size"] = 20
     engine_kwargs["max_overflow"] = 0
 
+if os.environ.get("TESTING"):
+    from sqlalchemy.pool import NullPool
+    engine_kwargs["poolclass"] = NullPool
+    engine_kwargs.pop("pool_size", None)
+    engine_kwargs.pop("max_overflow", None)
+
 engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 AsyncSessionLocal = sessionmaker(
     bind=engine, class_=AsyncSession, expire_on_commit=False

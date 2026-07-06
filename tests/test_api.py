@@ -56,10 +56,10 @@ def client():
     return httpx.AsyncClient(transport=transport, base_url="http://test")
 
 
-@pytest.fixture(scope="module")
-def api_key():
+@pytest.fixture
+async def api_key():
     """Create a test developer with a funded API key."""
-    return asyncio.run(_setup_test_developer())
+    return await _setup_test_developer()
 
 
 def _auth_headers(api_key: str) -> dict:
@@ -91,145 +91,133 @@ async def test_score_requires_auth(client):
     assert response.status_code == 401
 
 
-def test_score_endpoint(api_key):
-    async def _test():
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-            payload = {
-                "provider_id": "0xtest",
-                "job": {"capability": "summarize", "price_usdc": 0.05},
-                "cohort_median_price": 0.04,
-            }
-            response = await c.post("/v1/score", json=payload, headers=_auth_headers(api_key))
-        assert response.status_code == 200
-        data = response.json()
-        assert data["provider_id"] == "0xtest"
-        assert data["score"] >= 0.0
-        assert data["routing_decision"] in ("ROUTE", "ROUTE_WITH_CAUTION", "HOLD", "INVESTIGATE", "REFER", "QUARANTINE", "DENY")
-        assert "components" in data
-        assert "explanation" in data
-        assert "latency_ms" in data
-
-    asyncio.run(_test())
+@pytest.mark.anyio
+async def test_score_endpoint(api_key):
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        payload = {
+            "provider_id": "0xtest",
+            "job": {"capability": "summarize", "price_usdc": 0.05},
+            "cohort_median_price": 0.04,
+        }
+        response = await c.post("/v1/score", json=payload, headers=_auth_headers(api_key))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["provider_id"] == "0xtest"
+    assert data["score"] >= 0.0
+    assert data["routing_decision"] in ("ROUTE", "ROUTE_WITH_CAUTION", "HOLD", "INVESTIGATE", "REFER", "QUARANTINE", "DENY")
+    assert "components" in data
+    assert "explanation" in data
+    assert "latency_ms" in data
 
 
-def test_score_cold_start(api_key):
-    async def _test():
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-            payload = {
-                "provider_id": "0xcold_auth",
-                "job": {"capability": "summarize", "price_usdc": 0.05},
-                "cohort_median_price": 0.04,
-            }
-            response = await c.post("/v1/score", json=payload, headers=_auth_headers(api_key))
-        assert response.status_code == 200
-        data = response.json()
-        assert data["score"] < 0.25
-        assert "COLD_START" in data["flags"]
-
-    asyncio.run(_test())
+@pytest.mark.anyio
+async def test_score_cold_start(api_key):
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        payload = {
+            "provider_id": "0xcold_auth",
+            "job": {"capability": "summarize", "price_usdc": 0.05},
+            "cohort_median_price": 0.04,
+        }
+        response = await c.post("/v1/score", json=payload, headers=_auth_headers(api_key))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["score"] < 0.25
+    assert "COLD_START" in data["flags"]
 
 
-def test_batch_endpoint(api_key):
-    async def _test():
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-            payload = {
-                "providers": [
-                    {
-                        "provider_id": "0xgood",
-                        "job": {"capability": "summarize", "price_usdc": 0.05},
-                        "cohort_median_price": 0.04,
-                    },
-                    {
-                        "provider_id": "0xcold_batch",
-                        "job": {"capability": "summarize", "price_usdc": 0.05},
-                        "cohort_median_price": 0.04,
-                    },
-                ]
-            }
-            response = await c.post("/v1/score/batch", json=payload, headers=_auth_headers(api_key))
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 2
-        # Should be sorted by score descending
-        assert data[0]["score"] >= data[1]["score"]
-
-    asyncio.run(_test())
+@pytest.mark.anyio
+async def test_batch_endpoint(api_key):
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        payload = {
+            "providers": [
+                {
+                    "provider_id": "0xgood",
+                    "job": {"capability": "summarize", "price_usdc": 0.05},
+                    "cohort_median_price": 0.04,
+                },
+                {
+                    "provider_id": "0xcold_batch",
+                    "job": {"capability": "summarize", "price_usdc": 0.05},
+                    "cohort_median_price": 0.04,
+                },
+            ]
+        }
+        response = await c.post("/v1/score/batch", json=payload, headers=_auth_headers(api_key))
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 2
+    # Should be sorted by score descending
+    assert data[0]["score"] >= data[1]["score"]
 
 
-def test_benchmark_endpoint(api_key):
-    async def _test():
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-            payload = {
-                "scenario": "collusion_ring",
-                "n_agents": 50,
-                "adversary_ratio": 0.30,
-                "n_rounds": 30,
-                "n_jobs_per_round": 3,
-                "seed": 42,
-            }
-            response = await c.post("/v1/benchmark", json=payload, headers=_auth_headers(api_key))
-        assert response.status_code == 200
-        data = response.json()
-        assert data["scenario"] == "collusion_ring"
-        assert "trace_no_bandit" in data["results"]
-        assert "behavioral_only" in data["results"]
-        assert "eigentrust" in data["results"]
-        assert "fraud_reduction_vs_behavioral" in data
-        assert "fraud_reduction_vs_eigentrust" in data
-
-    asyncio.run(_test())
+@pytest.mark.anyio
+async def test_benchmark_endpoint(api_key):
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        payload = {
+            "scenario": "collusion_ring",
+            "n_agents": 50,
+            "adversary_ratio": 0.30,
+            "n_rounds": 30,
+            "n_jobs_per_round": 3,
+            "seed": 42,
+        }
+        response = await c.post("/v1/benchmark", json=payload, headers=_auth_headers(api_key))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["scenario"] == "collusion_ring"
+    assert "trace_no_bandit" in data["results"]
+    assert "behavioral_only" in data["results"]
+    assert "eigentrust" in data["results"]
+    assert "fraud_reduction_vs_behavioral" in data
+    assert "fraud_reduction_vs_eigentrust" in data
 
 
-def test_events_endpoint(api_key):
+@pytest.mark.anyio
+async def test_events_endpoint(api_key):
     """Test event reporting with authentication."""
-    async def _test():
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-            payload = {
-                "provider_id": "0xevent_test",
-                "buyer_id": "test-dev-uuid-001",
-                "job_id": f"job_event_{uuid.uuid4().hex[:8]}",
-                "success": True,
-                "capability": "summarize",
-                "price_usdc": 0.05,
-            }
-            response = await c.post("/v1/events", json=payload, headers=_auth_headers(api_key))
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-
-    asyncio.run(_test())
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        payload = {
+            "provider_id": "0xevent_test",
+            "buyer_id": "test-dev-uuid-001",
+            "job_id": f"job_event_{uuid.uuid4().hex[:8]}",
+            "success": True,
+            "capability": "summarize",
+            "price_usdc": 0.05,
+        }
+        response = await c.post("/v1/events", json=payload, headers=_auth_headers(api_key))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
 
 
-def test_full_flow(api_key):
-    async def _test():
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-            # Health
-            r1 = await c.get("/health")
-            assert r1.status_code == 200
+@pytest.mark.anyio
+async def test_full_flow(api_key):
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        # Health
+        r1 = await c.get("/health")
+        assert r1.status_code == 200
 
-            # Score single
-            score_payload = {
-                "provider_id": "0xflow_test",
-                "job": {"capability": "summarize", "price_usdc": 0.05},
-                "cohort_median_price": 0.04,
-            }
-            r2 = await c.post("/v1/score", json=score_payload, headers=_auth_headers(api_key))
-            assert r2.status_code == 200
+        # Score single
+        score_payload = {
+            "provider_id": "0xflow_test",
+            "job": {"capability": "summarize", "price_usdc": 0.05},
+            "cohort_median_price": 0.04,
+        }
+        r2 = await c.post("/v1/score", json=score_payload, headers=_auth_headers(api_key))
+        assert r2.status_code == 200
 
-            # Batch
-            batch_payload = {"providers": [score_payload]}
-            r3 = await c.post("/v1/score/batch", json=batch_payload, headers=_auth_headers(api_key))
-            assert r3.status_code == 200
+        # Batch
+        batch_payload = {"providers": [score_payload]}
+        r3 = await c.post("/v1/score/batch", json=batch_payload, headers=_auth_headers(api_key))
+        assert r3.status_code == 200
 
-            # Event
-            event_payload = {
-                "provider_id": "0xflow_test",
-                "buyer_id": "test-dev-uuid-001",
-                "job_id": f"job_flow_{uuid.uuid4().hex[:8]}",
-                "success": True,
-            }
-            r4 = await c.post("/v1/events", json=event_payload, headers=_auth_headers(api_key))
-            assert r4.status_code == 200
-
-    asyncio.run(_test())
+        # Event
+        event_payload = {
+            "provider_id": "0xflow_test",
+            "buyer_id": "test-dev-uuid-001",
+            "job_id": f"job_flow_{uuid.uuid4().hex[:8]}",
+            "success": True,
+        }
+        r4 = await c.post("/v1/events", json=event_payload, headers=_auth_headers(api_key))
+        assert r4.status_code == 200

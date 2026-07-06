@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,8 +12,6 @@ import {
   Plus,
   Copy,
   CheckCircle2,
-  AlertTriangle,
-  Info,
   Trash2,
   RotateCw,
   Shield,
@@ -69,7 +68,7 @@ export default function PortalPage() {
     : {};
 
   // 2. Fetch User Data
-  const { data: me, isLoading: meLoading } = useQuery({
+  const { data: me } = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
       if (!session) return null;
