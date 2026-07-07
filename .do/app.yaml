@@ -41,3 +41,18 @@ services:
         type: SECRET
       - key: CORS_ORIGINS
         value: "*"
+
+static_sites:
+  - name: frontend
+    github:
+      repo: NikunjKaushik20/TRACE-API
+      branch: main
+      deploy_on_push: true
+    output_dir: demo
+    index_document: index.html
+    error_document: index.html
+    routes:
+      - path: /portal
+        destination: /portal.html
+      - path: /api/*
+        destination: /api/*
