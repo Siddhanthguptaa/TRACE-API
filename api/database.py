@@ -1,13 +1,24 @@
 import os
+import logging
 from dotenv import load_dotenv
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, UniqueConstraint, Index
 from datetime import datetime, timezone
 
-DATABASE_URL = (os.getenv("DATABASE_URL") or "sqlite+aiosqlite:///./trace.db").strip()
+_raw_db_url = os.getenv("DATABASE_URL")
+DATABASE_URL = (_raw_db_url or "sqlite+aiosqlite:///./trace.db").strip()
+
+# Log which DB backend we're using (mask credentials)
+if _raw_db_url:
+    _safe = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else DATABASE_URL[:30]
+    print(f"[database] Using DATABASE_URL from env → ...@{_safe}")
+else:
+    print("[database] WARNING: DATABASE_URL not set, falling back to SQLite")
 
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
@@ -152,9 +163,15 @@ class GraphScore(Base):
 
 
 async def init_db():
-    async with engine.begin() as conn:
-        # create_all uses checkfirst=True by default, safe for concurrent workers
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        # Race condition: another worker already created the tables
+        if "already exists" in str(e):
+            pass
+        else:
+            raise
 
 
 async def get_db():
