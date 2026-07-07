@@ -40,7 +40,7 @@ services:
       - key: REDIS_URL
         value: ${trace-redis.DATABASE_URL}
       - key: CORS_ORIGINS
-        value: "https://yourdomain.com"
+        value: "*"
 
 databases:
   - name: trace-redis
