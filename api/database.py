@@ -7,7 +7,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, UniqueConstraint, Index
 from datetime import datetime, timezone
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./trace.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./trace.db").strip()
 
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
