@@ -23,6 +23,8 @@ import { supabase } from "@/lib/supabase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 
+export const dynamic = "force-dynamic";
+
 const tabs = [
   { id: "overview", label: "Overview", icon: Activity },
   { id: "keys", label: "API Keys", icon: KeyRound },
