@@ -10,21 +10,28 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, UniqueConstraint, Index
 from datetime import datetime, timezone
 
-_raw_db_url = os.getenv("DATABASE_URL")
-DATABASE_URL = (_raw_db_url or "sqlite+aiosqlite:///./trace.db").strip()
+# ─── DATABASE URL RESOLUTION ───────────────────────────────────────────────────
+# Priority: DATABASE_URL env var → SQLite fallback
+# Handles: leading/trailing whitespace, empty strings, missing env var
+_raw_db_url = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = _raw_db_url if _raw_db_url else "sqlite+aiosqlite:///./trace.db"
 
 # Log which DB backend we're using (mask credentials)
 if _raw_db_url:
     _safe = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else DATABASE_URL[:30]
     print(f"[database] Using DATABASE_URL from env → ...@{_safe}")
 else:
-    print("[database] WARNING: DATABASE_URL not set, falling back to SQLite")
+    print("[database] WARNING: DATABASE_URL not set or empty, falling back to SQLite")
 
+# Convert postgres:// or postgresql:// to postgresql+asyncpg://
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 
+print(f"[database] Final driver: {DATABASE_URL.split('://')[0]}")
+
+# ─── ENGINE CONFIGURATION ──────────────────────────────────────────────────────
 engine_kwargs = {"echo": False}
 if "postgresql" in DATABASE_URL:
     engine_kwargs["pool_size"] = 20
@@ -163,14 +170,17 @@ class GraphScore(Base):
 
 
 async def init_db():
+    """Create tables if they don't exist. Safe for concurrent workers."""
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        print("[database] Tables created/verified successfully")
     except Exception as e:
         # Race condition: another worker already created the tables
         if "already exists" in str(e):
-            pass
+            print("[database] Tables already exist (concurrent worker), continuing")
         else:
+            print(f"[database] ERROR during init_db: {e}")
             raise
 
 
