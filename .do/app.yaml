@@ -20,7 +20,7 @@ services:
       period_seconds: 30
     routes:
       - path: /api
-        preserve_path_prefix: true
+        preserve_path_prefix: false
     envs:
       - key: WORKERS
         value: "2"
