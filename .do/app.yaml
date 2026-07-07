@@ -18,9 +18,6 @@ services:
       http_path: /health
       initial_delay_seconds: 15
       period_seconds: 30
-    routes:
-      - path: /api
-        preserve_path_prefix: false
     envs:
       - key: WORKERS
         value: "2"
