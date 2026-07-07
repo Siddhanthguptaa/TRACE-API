@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Optional
 
-from ..trust.keys import get_jwks, sign_payload, load_private_key
+from ..trust.keys import get_jwks, sign_payload, load_private_key, KID
 from ..trust.models import (
     TrustSignalsResponse,
     BehavioralSignal,
@@ -13,7 +13,6 @@ from ..trust.models import (
     BindingMethod,
     ProviderInfo,
     SignalType,
-    KID,
 )
 from ..scorer import compute_trace_score
 from ..state import state_manager
