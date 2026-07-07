@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import score, batch, benchmark, health, events, portal
-from .trust import router as trust_router, get_jwks
+from .trust.router import router as trust_router
+from .trust.keys import get_jwks
 from .database import init_db
 from .state import state_manager
 from .rate_limit import limiter, rate_limit_exceeded_handler
