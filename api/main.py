@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import score, batch, benchmark, health, events, portal
+from .trust import router as trust_router, get_jwks
 from .database import init_db
 from .state import state_manager
 from .rate_limit import limiter, rate_limit_exceeded_handler
@@ -23,6 +24,9 @@ setup_logging()
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
+    # Ensure trust signing keys exist
+    from .trust.keys import ensure_keys_exist
+    ensure_keys_exist()
     yield
     # Shutdown
 
@@ -54,6 +58,11 @@ app.add_middleware(MetricsMiddleware)
 async def root():
     return {"status": "ok", "message": "TRACE API is running"}
 
+# JWKS endpoint for trust signal verification
+@app.get("/.well-known/jwks.json", include_in_schema=False)
+async def jwks():
+    return get_jwks()
+
 
 # Prometheus metrics endpoint
 app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], include_in_schema=False)
@@ -79,3 +88,4 @@ app.include_router(benchmark.router, prefix="/v1")
 app.include_router(events.router, prefix="/v1")
 app.include_router(portal.router, prefix="/portal", tags=["Portal"])
 app.include_router(health.router, prefix="")
+app.include_router(trust_router, prefix="/v1", tags=["Trust"])
