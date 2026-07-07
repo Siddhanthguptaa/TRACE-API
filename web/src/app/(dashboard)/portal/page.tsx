@@ -63,14 +63,14 @@ export default function PortalPage() {
   }, []);
 
   const handleSignIn = async () => {
-    const redirectUrl = typeof window !== "undefined" && window.location.hostname !== "localhost"
-      ? `${window.location.origin}/auth/callback`
-      : "https://trace-api-ixv6o.ondigitalocean.app/auth/callback";
-    
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: "https://trace-api-ixv6o.ondigitalocean.app/auth/callback",
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
       },
     });
   };
