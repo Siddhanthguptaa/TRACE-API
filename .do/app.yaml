@@ -12,7 +12,7 @@ services:
       branch: main
       deploy_on_push: true
     instance_count: 1
-    instance_size_slug: basic-xxs  # $5/mo — 512MB RAM, 1 vCPU
+    instance_size_slug: basic-xs  # $10/mo — 1GB RAM, 1 vCPU
     http_port: 8000
     health_check:
       http_path: /health
@@ -36,15 +36,8 @@ services:
       - key: RAZORPAY_WEBHOOK_SECRET
         type: SECRET
       - key: CELERY_BROKER_URL
-        value: ${trace-redis.DATABASE_URL}
+        type: SECRET
       - key: REDIS_URL
-        value: ${trace-redis.DATABASE_URL}
+        type: SECRET
       - key: CORS_ORIGINS
         value: "*"
-
-databases:
-  - name: trace-redis
-    engine: REDIS
-    num_nodes: 1
-    size_slug: db-s-1vcpu-1gb
-    version: "7"
