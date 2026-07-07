@@ -65,3 +65,7 @@ services:
     envs:
       - key: NEXT_PUBLIC_API_URL
         value: "https://${api.PUBLIC_URL}"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        type: SECRET
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        type: SECRET
