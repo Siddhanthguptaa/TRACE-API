@@ -153,9 +153,7 @@ class GraphScore(Base):
 
 async def init_db():
     async with engine.begin() as conn:
-        # Drop all tables first (handles schema mismatches from old migrations)
-        await conn.run_sync(Base.metadata.drop_all)
-        # Recreate all tables from current models
+        # create_all uses checkfirst=True by default, safe for concurrent workers
         await conn.run_sync(Base.metadata.create_all)
 
 
