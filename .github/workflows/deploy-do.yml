@@ -24,7 +24,8 @@ jobs:
         id: deploy
         run: |
           APP_NAME="trace-api"
-          APP_ID=$(doctl apps list --format ID,Name --no-header | grep "$APP_NAME" | awk '{print $1}')
+          # Try to find existing app (case-insensitive, partial match)
+          APP_ID=$(doctl apps list --format ID,Name --no-header | grep -i "$APP_NAME" | head -1 | awk '{print $1}')
           
           if [ -z "$APP_ID" ]; then
             echo "Creating new app..."
@@ -40,7 +41,7 @@ jobs:
         if: always()
         run: |
           APP_NAME="trace-api"
-          APP_ID=$(doctl apps list --format ID,Name --no-header | grep "$APP_NAME" | awk '{print $1}')
+          APP_ID=$(doctl apps list --format ID,Name --no-header | grep -i "$APP_NAME" | head -1 | awk '{print $1}')
           
           if [ -n "$APP_ID" ]; then
             echo "Waiting for deployment to complete..."
