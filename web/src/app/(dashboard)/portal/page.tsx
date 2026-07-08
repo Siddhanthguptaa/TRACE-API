@@ -65,6 +65,9 @@ export default function PortalPage() {
   const handleSignIn = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo: "https://trace-api-ixv6o.ondigitalocean.app/portal",
+      },
     });
   };
 
