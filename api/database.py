@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, UniqueConstraint, Index, text
 from datetime import datetime, timezone
 
 # ─── DATABASE URL RESOLUTION ───────────────────────────────────────────────────
@@ -76,7 +76,7 @@ class APIKey(Base):
     is_active = Column(Boolean, default=True)
     is_test = Column(Boolean, default=False)
     scope = Column(String, default="full_access") # e.g. read_only, billing, full_access
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     developer = relationship("Developer", back_populates="api_keys")
 
@@ -93,7 +93,7 @@ class BillingTransaction(Base):
     endpoint = Column(String, nullable=True)  # e.g., "/v1/score"
     provider_id = Column(String, nullable=True)  # which provider was scored
     razorpay_payment_id = Column(String, unique=True, nullable=True)  # for webhook idempotency
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     developer = relationship("Developer", back_populates="transactions")
 
@@ -108,7 +108,7 @@ class AuditEvent(Base):
     description = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     developer = relationship("Developer", back_populates="audit_events")
 
@@ -124,7 +124,7 @@ class ProviderRecord(Base):
     total_jobs = Column(Integer, default=0)
     cusum_state = Column(Float, default=0.0)
     ema_default_rate = Column(Float, default=0.0)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class TrustEdge(Base):
@@ -135,8 +135,8 @@ class TrustEdge(Base):
     source_id = Column(String, index=True, nullable=False)  # buyer
     target_id = Column(String, index=True, nullable=False)  # provider
     weight = Column(Integer, default=1)  # number of successful interactions
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         UniqueConstraint("source_id", "target_id", name="uq_trust_edge"),
@@ -155,7 +155,7 @@ class EventRecord(Base):
     capability = Column(String, nullable=True)
     price_usdc = Column(Float, nullable=True)
     success = Column(Boolean, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class GraphScore(Base):
@@ -166,7 +166,7 @@ class GraphScore(Base):
     provider_id = Column(String, unique=True, index=True, nullable=False)
     pagerank = Column(Float, default=0.0)
     clustering = Column(Float, default=0.0)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 async def init_db():
@@ -174,6 +174,27 @@ async def init_db():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            
+            # Migrate existing TIMESTAMP columns to TIMESTAMPTZ (PostgreSQL only)
+            if "postgresql" in str(engine.url):
+                await conn.execute(text("""
+                    DO $$
+                    DECLARE
+                        r RECORD;
+                    BEGIN
+                        FOR r IN
+                            SELECT table_name, column_name
+                            FROM information_schema.columns
+                            WHERE table_schema = 'public'
+                              AND data_type = 'timestamp without time zone'
+                              AND column_name IN ('created_at', 'updated_at')
+                        LOOP
+                            EXECUTE format('ALTER TABLE %I ALTER COLUMN %I TYPE timestamptz USING %I AT TIME ZONE ''UTC''',
+                                           r.table_name, r.column_name, r.column_name);
+                        END LOOP;
+                    END $$;
+                """))
+                
         print("[database] Tables created/verified successfully")
     except Exception as e:
         # Race condition: another worker already created the tables

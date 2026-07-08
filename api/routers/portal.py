@@ -324,7 +324,8 @@ async def create_checkout_session(request: Request, req: CheckoutRequest, dev: D
         
     try:
         amount_inr = int(req.amount_usdc * 85 * 100) # Assuming 1 USDC = 85 INR, converting to paise
-        order = _create_razorpay_order(amount_inr, dev.id, req.amount_usdc)
+        dev_id = dev.id  # Eagerly fetch before any DB errors
+        order = _create_razorpay_order(amount_inr, dev_id, req.amount_usdc)
         
         # Record audit event
         await _record_audit(db, dev, "checkout", f"Created checkout for ${req.amount_usdc:.2f} USDC", request)
@@ -336,7 +337,8 @@ async def create_checkout_session(request: Request, req: CheckoutRequest, dev: D
             key_id=settings.razorpay_key_id
         )
     except Exception as e:
-        logger.error(f"Checkout creation failed for developer {dev.id}: {e}", exc_info=True)
+        await db.rollback()
+        logger.error(f"Checkout creation failed for developer {dev_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Payment processing error. Please try again.")
 
 
