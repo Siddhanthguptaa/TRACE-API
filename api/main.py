@@ -72,7 +72,7 @@ app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], include_in_sche
 # CORS — configurable origins, no wildcard + credentials combo
 ALLOWED_ORIGINS = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:3000,http://localhost:3001,http://localhost:8000,http://127.0.0.1:8000"
+    "http://localhost:3000,http://localhost:3001,http://localhost:8000,http://127.0.0.1:8000,https://trace-api-ixv6o.ondigitalocean.app"
 ).split(",")
 
 app.add_middleware(

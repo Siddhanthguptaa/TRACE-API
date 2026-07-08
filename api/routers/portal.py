@@ -22,10 +22,17 @@ router = APIRouter()
 
 # --- Request / Response Models ---
 
+class APIKeyInfo(BaseModel):
+    id: int
+    key_prefix: str
+    scope: str
+    is_test: bool
+    created_at: str
+
 class DeveloperResponse(BaseModel):
     email: str
     balance_usdc: float
-    active_keys: list[str]
+    active_keys: list[APIKeyInfo]
 
 class APIKeyRequest(BaseModel):
     is_test: bool = False
@@ -58,6 +65,11 @@ class AuditEventResponse(BaseModel):
     description: Optional[str] = None
     ip_address: Optional[str] = None
     created_at: str
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
 
 class SettingsRequest(BaseModel):
     webhook_url: Optional[str] = None
@@ -106,11 +118,20 @@ def _create_razorpay_order(amount_inr: int, dev_id: str, amount_usdc: float) -> 
 async def get_me(dev: Developer = Depends(get_current_developer), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(APIKey).filter(APIKey.developer_id == dev.id, APIKey.is_active == True))
     keys = result.scalars().all()
-    prefixes = [k.key_prefix for k in keys]
+    key_infos = [
+        APIKeyInfo(
+            id=k.id,
+            key_prefix=k.key_prefix,
+            scope=k.scope or "full_access",
+            is_test=k.is_test,
+            created_at=k.created_at.isoformat() if k.created_at else "",
+        )
+        for k in keys
+    ]
     return DeveloperResponse(
         email=dev.email,
         balance_usdc=dev.balance_usdc,
-        active_keys=prefixes
+        active_keys=key_infos
     )
 
 
@@ -317,6 +338,67 @@ async def create_checkout_session(request: Request, req: CheckoutRequest, dev: D
     except Exception as e:
         logger.error(f"Checkout creation failed for developer {dev.id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Payment processing error. Please try again.")
+
+
+@router.post("/verify-payment")
+async def verify_payment(
+    request: Request,
+    req: VerifyPaymentRequest,
+    dev: Developer = Depends(get_current_developer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify Razorpay payment signature and credit balance immediately.
+    
+    Called by the frontend after Razorpay checkout completes. This provides
+    instant balance credit rather than waiting for the async webhook.
+    """
+    # Verify the payment signature using Razorpay's utility
+    try:
+        rzp_client.utility.verify_payment_signature({
+            "razorpay_order_id": req.razorpay_order_id,
+            "razorpay_payment_id": req.razorpay_payment_id,
+            "razorpay_signature": req.razorpay_signature,
+        })
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+
+    # Fetch the order to get the amount from notes
+    try:
+        order = rzp_client.order.fetch(req.razorpay_order_id)
+    except Exception as e:
+        logger.error(f"Failed to fetch Razorpay order {req.razorpay_order_id}: {e}")
+        raise HTTPException(status_code=500, detail="Could not verify order details")
+
+    amount_usdc = float(order.get("notes", {}).get("amount_usdc", 0))
+    if amount_usdc <= 0:
+        raise HTTPException(status_code=400, detail="Invalid order amount")
+
+    # Credit balance with idempotency (razorpay_payment_id is unique)
+    try:
+        async with db.begin_nested():
+            txn = BillingTransaction(
+                developer_id=dev.id,
+                amount_usdc=amount_usdc,
+                balance_after=dev.balance_usdc + amount_usdc,
+                transaction_type="top_up",
+                razorpay_payment_id=req.razorpay_payment_id,
+            )
+            db.add(txn)
+            dev.balance_usdc += amount_usdc
+    except IntegrityError:
+        # Already processed (idempotency via unique razorpay_payment_id)
+        await db.rollback()
+        return {"status": "already_processed", "balance_usdc": dev.balance_usdc}
+
+    await _record_audit(
+        db, dev, "payment_verified",
+        f"Verified payment {req.razorpay_payment_id} for ${amount_usdc:.2f} USDC",
+        request,
+    )
+    await db.commit()
+    await db.refresh(dev)
+
+    return {"status": "success", "balance_usdc": dev.balance_usdc, "amount_usdc": amount_usdc}
 
 
 @router.post("/webhook")

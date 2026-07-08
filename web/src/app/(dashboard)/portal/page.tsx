@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   KeyRound,
@@ -16,6 +16,7 @@ import {
   RotateCw,
   Shield,
   FileText,
+  AlertCircle,
 } from "lucide-react";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
@@ -41,7 +42,16 @@ export default function PortalPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [copied, setCopied] = useState<string | null>(null);
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   // 1. Authenticate with Supabase
   const [session, setSession] = useState<any>(null);
@@ -62,11 +72,24 @@ export default function PortalPage() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Load Razorpay SDK dynamically
+  useEffect(() => {
+    if (typeof window !== "undefined" && !(window as any).Razorpay) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
   const handleSignIn = async () => {
+    const redirectUrl = typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback`
+      : "http://localhost:3000/auth/callback";
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://trace-api-ixv6o.ondigitalocean.app/portal",
+        redirectTo: redirectUrl,
       },
     });
   };
@@ -150,6 +173,9 @@ export default function PortalPage() {
       queryClient.invalidateQueries({ queryKey: ["me"] });
       queryClient.invalidateQueries({ queryKey: ["audit"] });
     },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || "Failed to create API key");
+    },
   });
 
   const revokeKeyMutation = useMutation({
@@ -161,6 +187,9 @@ export default function PortalPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["me"] });
       queryClient.invalidateQueries({ queryKey: ["audit"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || "Failed to revoke API key");
     },
   });
 
@@ -177,6 +206,27 @@ export default function PortalPage() {
       setNewKey(data.key);
       queryClient.invalidateQueries({ queryKey: ["me"] });
       queryClient.invalidateQueries({ queryKey: ["audit"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || "Failed to rotate API key");
+    },
+  });
+
+  const verifyPaymentMutation = useMutation({
+    mutationFn: async (paymentData: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+      const res = await axios.post(
+        `${API_BASE}/portal/verify-payment`,
+        paymentData,
+        { headers: authHeaders }
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || "Payment verification failed. Your balance will update shortly.");
     },
   });
 
@@ -199,13 +249,22 @@ export default function PortalPage() {
           currency: "INR",
           name: "TRACE",
           description: "API Credits Top-up",
-          handler: () => {
-            queryClient.invalidateQueries({ queryKey: ["me"] });
-            queryClient.invalidateQueries({ queryKey: ["transactions"] });
+          handler: (response: any) => {
+            // Verify payment server-side and credit balance immediately
+            verifyPaymentMutation.mutate({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
           },
         });
         rzp.open();
+      } else {
+        setError("Payment gateway is loading. Please try again in a moment.");
       }
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || "Failed to initiate checkout");
     },
   });
 
@@ -267,17 +326,16 @@ export default function PortalPage() {
     );
 
   const apiKeys =
-    me?.active_keys?.map((prefix: string, i: number) => ({
-      id: i,
-      name: "API Key",
-      prefix,
-      lastUsed: "Recently",
+    me?.active_keys?.map((key: any) => ({
+      id: key.id,
+      name: key.is_test ? "Test Key" : "Live Key",
+      prefix: key.key_prefix,
+      scope: key.scope,
+      created_at: key.created_at,
     })) || [];
 
   return (
     <div className="w-full min-h-[calc(100vh-56px)] flex bg-surface-base">
-      {/* Razorpay SDK Script */}
-      <script src="https://checkout.razorpay.com/v1/checkout.js" async />
 
       <aside
         className="w-64 border-r border-border-default bg-surface-muted p-6 hidden md:flex flex-col"
@@ -358,6 +416,22 @@ export default function PortalPage() {
               Manage your API keys, monitor usage, and configure billing.
             </p>
           </header>
+
+          {/* Error notification */}
+          {error && (
+            <div className="mb-6 p-4 bg-accent-red/10 border border-accent-red/20 rounded-md flex items-start gap-3">
+              <AlertCircle className="w-4 h-4 text-accent-red mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-text-primary">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-xs text-text-tertiary hover:text-text-primary"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {/* New key banner */}
           {newKey && (
