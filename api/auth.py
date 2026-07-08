@@ -2,6 +2,7 @@ import hashlib
 import logging
 import secrets
 import jwt
+from jwt import PyJWKClient
 from fastapi import HTTPException, Security, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,10 @@ API_CALL_COST = 0.005  # $0.005 per API call
 
 security = HTTPBearer()
 api_key_security = HTTPBearer(auto_error=False)
+
+# JWKS client for Supabase's new JWT signing keys (cached automatically)
+_jwks_url = f"{settings.supabase_url}/.well-known/jwks.json"
+jwks_client = PyJWKClient(_jwks_url, cache_keys=True, lifespan=3600)
 
 # Scope definitions: what each scope allows
 SCOPE_PERMISSIONS = {
@@ -47,8 +52,22 @@ async def get_current_developer(
 ) -> Developer:
     token = credentials.credentials
     try:
-        # Supabase signs JWTs with HS256 and the JWT secret
-        payload = jwt.decode(token, settings.supabase_jwt_secret, algorithms=[ALGORITHM], audience="authenticated")
+        # Check the token's algorithm header
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+        
+        if alg != "HS256":
+            # New Supabase JWT signing keys (EdDSA/RS256) — verify via JWKS
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token, signing_key.key, algorithms=[alg], audience="authenticated"
+            )
+        else:
+            # Legacy HS256 secret
+            payload = jwt.decode(
+                token, settings.supabase_jwt_secret, algorithms=["HS256"], audience="authenticated"
+            )
+        
         user_id: str = payload.get("sub")
         email: str = payload.get("email")
         
