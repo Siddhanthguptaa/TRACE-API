@@ -85,6 +85,16 @@ async def get_current_developer(
     result = await db.execute(select(Developer).filter(Developer.id == user_id))
     developer = result.scalars().first()
     
+    if developer is None and email:
+        # ID not found — check if email already exists (e.g. after Supabase key migration)
+        email_result = await db.execute(select(Developer).filter(Developer.email == email))
+        developer = email_result.scalars().first()
+        if developer:
+            # Same email, new Supabase user ID — update the ID
+            developer.id = user_id
+            await db.commit()
+            await db.refresh(developer)
+    
     if developer is None:
         developer = Developer(id=user_id, email=email or f"{user_id}@placeholder.com")
         db.add(developer)
