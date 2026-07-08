@@ -82,24 +82,35 @@ async def get_current_developer(
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     
     # Upsert developer (since they sign up via Supabase directly)
-    result = await db.execute(select(Developer).filter(Developer.id == user_id))
-    developer = result.scalars().first()
-    
-    if developer is None and email:
-        # ID not found — check if email already exists (e.g. after Supabase key migration)
-        email_result = await db.execute(select(Developer).filter(Developer.email == email))
-        developer = email_result.scalars().first()
-        if developer:
-            # Same email, new Supabase user ID — update the ID
-            developer.id = user_id
+    try:
+        result = await db.execute(select(Developer).filter(Developer.id == user_id))
+        developer = result.scalars().first()
+        
+        if developer is None and email:
+            # ID not found — check if email already exists (e.g. after Supabase key migration)
+            email_result = await db.execute(select(Developer).filter(Developer.email == email))
+            existing = email_result.scalars().first()
+            if existing:
+                # Same email, new Supabase user ID — update via raw SQL (can't change PK in ORM safely)
+                from sqlalchemy import text
+                await db.execute(
+                    text("UPDATE developers SET id = :new_id WHERE email = :email"),
+                    {"new_id": user_id, "email": email}
+                )
+                await db.commit()
+                # Re-fetch with new ID
+                result = await db.execute(select(Developer).filter(Developer.id == user_id))
+                developer = result.scalars().first()
+        
+        if developer is None:
+            developer = Developer(id=user_id, email=email or f"{user_id}@placeholder.com")
+            db.add(developer)
             await db.commit()
             await db.refresh(developer)
-    
-    if developer is None:
-        developer = Developer(id=user_id, email=email or f"{user_id}@placeholder.com")
-        db.add(developer)
-        await db.commit()
-        await db.refresh(developer)
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Developer upsert failed: {e}")
+        raise HTTPException(status_code=500, detail="Account initialization error")
         
     return developer
 
