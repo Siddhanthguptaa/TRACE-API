@@ -55,6 +55,7 @@ async def get_current_developer(
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     except jwt.PyJWTError as e:
+        logger.error(f"JWT decode failed: {type(e).__name__}: {e}")
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     
     # Upsert developer (since they sign up via Supabase directly)
