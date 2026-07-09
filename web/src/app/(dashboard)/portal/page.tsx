@@ -93,6 +93,10 @@ export default function PortalPage() {
     });
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   const authHeaders = session
     ? { Authorization: `Bearer ${session.access_token}` }
     : {};
