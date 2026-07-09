@@ -20,7 +20,11 @@ security = HTTPBearer()
 api_key_security = HTTPBearer(auto_error=False)
 
 # JWKS client for Supabase's new JWT signing keys (cached automatically)
-_jwks_url = "https://trace-api-ixv6o.ondigitalocean.app/api/v1/trust/.well-known/jwks.json"
+# Supabase serves JWKS at /auth/v1/.well-known/jwks.json (ES256)
+_supabase_base = settings.supabase_url.rstrip("/") if settings.supabase_url else ""
+if not _supabase_base or not _supabase_base.startswith("http"):
+    _supabase_base = "https://uvdtorvdcphslzgraktm.supabase.co"
+_jwks_url = f"{_supabase_base}/auth/v1/.well-known/jwks.json"
 jwks_client = PyJWKClient(_jwks_url, cache_keys=True, lifespan=3600)
 
 # Scope definitions: what each scope allows

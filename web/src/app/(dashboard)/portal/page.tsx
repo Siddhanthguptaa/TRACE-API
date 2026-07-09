@@ -93,57 +93,59 @@ export default function PortalPage() {
     });
   };
 
-  const authHeaders = session
-    ? { Authorization: `Bearer ${session.access_token}` }
-    : {};
+  // Build auth headers lazily so every request gets the freshest token.
+  // Using a function avoids stale-closure issues in React Query callbacks.
+  const getAuthHeaders = useCallback(() => {
+    if (!session?.access_token) return {};
+    return { Authorization: `Bearer ${session.access_token}` };
+  }, [session]);
 
   // 2. Fetch User Data
   const { data: me } = useQuery({
-    queryKey: ["me"],
+    queryKey: ["me", session?.access_token],
     queryFn: async () => {
-      if (!session) return null;
-      const res = await axios.get(`${API_BASE}/portal/me`, {
-        headers: authHeaders,
-      });
+      const headers = getAuthHeaders();
+      if (!headers.Authorization) return null;
+      const res = await axios.get(`${API_BASE}/portal/me`, { headers });
       return res.data;
     },
-    enabled: !!session,
+    enabled: !!session?.access_token,
   });
 
   // 3. Fetch Transactions
   const { data: transactions = [] } = useQuery({
-    queryKey: ["transactions"],
+    queryKey: ["transactions", session?.access_token],
     queryFn: async () => {
       const res = await axios.get(`${API_BASE}/portal/transactions?limit=50`, {
-        headers: authHeaders,
+        headers: getAuthHeaders(),
       });
       return res.data;
     },
-    enabled: !!session && (activeTab === "billing" || activeTab === "overview"),
+    enabled: !!session?.access_token && (activeTab === "billing" || activeTab === "overview"),
   });
 
   // 4. Fetch Audit Log
   const { data: auditEvents = [] } = useQuery({
-    queryKey: ["audit"],
+    queryKey: ["audit", session?.access_token],
     queryFn: async () => {
       const res = await axios.get(`${API_BASE}/portal/audit?limit=50`, {
-        headers: authHeaders,
+        headers: getAuthHeaders(),
       });
       return res.data;
     },
-    enabled: !!session && activeTab === "audit",
+    enabled: !!session?.access_token && activeTab === "audit",
   });
 
   // 5. Fetch Settings
   const { data: devSettings } = useQuery({
-    queryKey: ["settings"],
+    queryKey: ["settings", session?.access_token],
     queryFn: async () => {
       const res = await axios.get(`${API_BASE}/portal/settings`, {
-        headers: authHeaders,
+        headers: getAuthHeaders(),
       });
       return res.data;
     },
-    enabled: !!session && activeTab === "settings",
+    enabled: !!session?.access_token && activeTab === "settings",
   });
 
   const handleCopy = async (text: string) => {
@@ -163,7 +165,7 @@ export default function PortalPage() {
       const res = await axios.post(
         `${API_BASE}/portal/keys`,
         { is_test: false, scope: "full_access" },
-        { headers: authHeaders }
+        { headers: getAuthHeaders() }
       );
       return res.data;
     },
@@ -180,7 +182,7 @@ export default function PortalPage() {
   const revokeKeyMutation = useMutation({
     mutationFn: async (keyId: number) => {
       await axios.delete(`${API_BASE}/portal/keys/${keyId}`, {
-        headers: authHeaders,
+        headers: getAuthHeaders(),
       });
     },
     onSuccess: () => {
@@ -197,7 +199,7 @@ export default function PortalPage() {
       const res = await axios.post(
         `${API_BASE}/portal/keys/${keyId}/rotate`,
         {},
-        { headers: authHeaders }
+        { headers: getAuthHeaders() }
       );
       return res.data;
     },
@@ -216,7 +218,7 @@ export default function PortalPage() {
       const res = await axios.post(
         `${API_BASE}/portal/verify-payment`,
         paymentData,
-        { headers: authHeaders }
+        { headers: getAuthHeaders() }
       );
       return res.data;
     },
@@ -234,7 +236,7 @@ export default function PortalPage() {
       const res = await axios.post(
         `${API_BASE}/portal/checkout`,
         { amount_usdc: amount },
-        { headers: authHeaders }
+        { headers: getAuthHeaders() }
       );
       return res.data;
     },
@@ -273,7 +275,7 @@ export default function PortalPage() {
       notification_email?: string;
     }) => {
       const res = await axios.put(`${API_BASE}/portal/settings`, settings, {
-        headers: authHeaders,
+        headers: getAuthHeaders(),
       });
       return res.data;
     },
