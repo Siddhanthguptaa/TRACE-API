@@ -53,7 +53,7 @@ from x402.schemas.hooks import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TRACE_API_URL = "https://traceapi-xxf56.ondigitalocean.app/v1/score"
+DEFAULT_TRACE_API_URL = "https://trace-api-ixv6o.ondigitalocean.app/api/v1/score"
 
 
 class TraceTrustExtensionHooks(ResourceServerExtensionHooks):

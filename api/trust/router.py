@@ -1,5 +1,6 @@
 """TRACE Trust Signals API endpoints."""
 
+import os
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Optional
@@ -17,6 +18,15 @@ from ..trust.models import (
 from ..scorer import compute_trace_score
 from ..state import state_manager
 from ..auth import verify_api_key, Developer
+
+# Public JWKS URL for trust signal verification — used in signed payloads so
+# external verifiers can fetch the signing key.  Configurable via env var so it
+# stays correct across deployments.
+_public_base = os.getenv(
+    "TRACE_PUBLIC_URL",
+    "https://trace-api-ixv6o.ondigitalocean.app/api"
+).rstrip("/")
+JWKS_URL = f"{_public_base}/v1/trust/.well-known/jwks.json"
 
 router = APIRouter(prefix="/trust", tags=["trust"])
 
@@ -49,7 +59,7 @@ def _create_behavioral_signal(
         },
         "provider": {
             "name": "trace-api",
-            "jwks": f"https://traceapi-xxf56.ondigitalocean.app/.well-known/jwks.json",
+            "jwks": JWKS_URL,
             "kid": KID,
             "sig": "",  # Will be filled after signing
         },
@@ -111,7 +121,7 @@ def _create_governance_attestation_signal(
         },
         "provider": {
             "name": "trace-api",
-            "jwks": f"https://traceapi-xxf56.ondigitalocean.app/.well-known/jwks.json",
+            "jwks": JWKS_URL,
             "kid": KID,
             "sig": "",
         },

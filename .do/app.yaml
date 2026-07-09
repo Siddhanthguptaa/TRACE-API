@@ -64,7 +64,7 @@ services:
       - path: /
     envs:
       - key: NEXT_PUBLIC_API_URL
-        value: "${api.PUBLIC_URL}/api"
+        value: "${api.PUBLIC_URL}"
       - key: NEXT_PUBLIC_SUPABASE_URL
         value: "https://uvdtorvdcphslzgraktm.supabase.co"
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY

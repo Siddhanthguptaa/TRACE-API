@@ -55,7 +55,7 @@ app = x402_server(
 | `api_key` | Required | Your TRACE API key |
 | `min_score` | `0.35` | Minimum score to allow routing |
 | `fail_closed` | `True` | Reject on API failure |
-| `api_url` | `https://traceapi-xxf56.ondigitalocean.app/v1/score` | TRACE API endpoint |
+| `api_url` | `https://trace-api-ixv6o.ondigitalocean.app/api/v1/score` | TRACE API endpoint |
 
 ## Fail-Closed vs Fail-Open
 
