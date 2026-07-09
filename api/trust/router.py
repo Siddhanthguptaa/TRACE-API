@@ -65,7 +65,7 @@ def _create_behavioral_signal(
         "attested_at": datetime.now(timezone.utc).isoformat(),
         "expires_at": expires_at.isoformat(),
         "evidence_source_count": trace_result.evidence_source_count,
-        "anchor_commitment": trace_result.anchor_commitment,
+        "anchor_commitment": str(trace_result.anchor_commitment),
         "flags": trace_result.flags,
     }
     
@@ -78,7 +78,6 @@ def _create_behavioral_signal(
 
 def _create_governance_attestation_signal(
     provider_id: str,
-    str,
     trace_result,
     binding_method: BindingMethod = BindingMethod.DID_PKH,
 ) -> GovernanceAttestationSignal:
@@ -164,6 +163,7 @@ async def get_trust_signals(
             provider_id=provider_id,
             job_capability="general",
             price_usdc=0.0,
+            cohort_median_price=0.0,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Score computation failed: {str(e)}")

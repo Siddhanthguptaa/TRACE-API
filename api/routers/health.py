@@ -30,9 +30,13 @@ async def health_check():
     # We consider "ok" if DB is connected, worker status is informational
     status = "ok" if db_ok else "degraded"
 
+    db_url = os.environ.get("DATABASE_URL", "Not Set")
+    db_host = db_url.split("@")[-1].split(":")[0] if "@" in db_url else "unknown"
+
     return {
         "status": status,
         "version": "1.0.0",
         "database": "connected" if db_ok else "unreachable",
+        "db_host": db_host,
         "trust_graph": stats,
     }
