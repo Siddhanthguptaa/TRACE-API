@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from sqlalchemy import text
+import os
 
 from ..models import HealthResponse
 from ..state import state_manager
