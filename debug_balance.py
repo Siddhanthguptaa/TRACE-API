@@ -7,11 +7,17 @@ import asyncio
 import asyncpg
 import jwt
 import json
+import os
 import urllib.request
 from urllib.error import HTTPError
 
-DATABASE_URL = "postgresql://postgres.uvdtorvdcphslzgraktm:Nikunj%401315@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
-SUPABASE_JWT_SECRET = "ZiGJf6iJ0Rh0xQMFCRiurlve/X4LrehwDDl+RRX+iZaCqCm1082ovWe2w6Gt0PwOj1Duj5k6McNO17WIAHZQPA=="
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required")
+
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+if not SUPABASE_JWT_SECRET:
+    raise ValueError("SUPABASE_JWT_SECRET environment variable is required")
 
 async def main():
     conn = await asyncpg.connect(DATABASE_URL)

@@ -5,8 +5,11 @@ and compare with Supabase auth users.
 import asyncio
 import asyncpg
 import json
+import os
 
-DATABASE_URL = "postgresql://postgres.uvdtorvdcphslzgraktm:Nikunj%401315@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required")
 
 async def main():
     conn = await asyncpg.connect(DATABASE_URL)
