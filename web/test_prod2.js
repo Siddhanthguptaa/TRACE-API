@@ -1,7 +1,12 @@
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+require('dotenv').config();
 
-const secret = 'ZiGJf6iJ0Rh0xQMFCRiurlve/X4LrehwDDl+RRX+iZaCqCm1082ovWe2w6Gt0PwOj1Duj5k6McNO17WIAHZQPA==';
+const secret = process.env.SUPABASE_JWT_SECRET;
+if (!secret) {
+  console.error('Error: SUPABASE_JWT_SECRET environment variable is required');
+  process.exit(1);
+}
 const token = jwt.sign(
   { sub: 'test-user-id', email: 'test@example.com', aud: 'authenticated', role: 'authenticated' },
   secret,

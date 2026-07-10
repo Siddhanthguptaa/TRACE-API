@@ -1,9 +1,12 @@
 import jwt
 import urllib.request
 import json
+import os
 from urllib.error import HTTPError
 
-secret = "ZiGJf6iJ0Rh0xQMFCRiurlve/X4LrehwDDl+RRX+iZaCqCm1082ovWe2w6Gt0PwOj1Duj5k6McNO17WIAHZQPA=="
+secret = os.getenv("SUPABASE_JWT_SECRET")
+if not secret:
+    raise ValueError("SUPABASE_JWT_SECRET environment variable is required")
 payload = {
     "sub": "test-user-id",
     "email": "test@example.com",
