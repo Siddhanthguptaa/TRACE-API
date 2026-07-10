@@ -7,10 +7,16 @@ from jwt import PyJWKClient
 import base64
 import json
 import sys
+import os
 
 # Same config as the deployed app
-SUPABASE_JWT_SECRET = "ZiGJf6iJ0Rh0xQMFCRiurlve/X4LrehwDDl+RRX+iZaCqCm1082ovWe2w6Gt0PwOj1Duj5k6McNO17WIAHZQPA=="
-SUPABASE_URL = "https://uvdtorvdcphslzgraktm.supabase.co"
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+if not SUPABASE_JWT_SECRET:
+    raise ValueError("SUPABASE_JWT_SECRET environment variable is required")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+if not SUPABASE_URL:
+    raise ValueError("SUPABASE_URL environment variable is required")
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 
 # 1. Fetch JWKS to see what algorithms Supabase uses

@@ -1,9 +1,15 @@
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
+require('dotenv').config();
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+  console.error('Error: SUPABASE_URL and SUPABASE_KEY environment variables are required');
+  process.exit(1);
+}
 
 const supabase = createClient(
-  'https://uvdtorvdcphslzgraktm.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2ZHRvcnZkY3Boc2x6Z3Jha3RtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxODM2NTQsImV4cCI6MjA5ODc1OTY1NH0.goMubVZCj6dpvF1GLagXbXkEhlOu5C58Q4JcAS0siVc'
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
 );
 
 async function test() {
