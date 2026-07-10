@@ -68,6 +68,6 @@ services:
       - key: NEXT_PUBLIC_SUPABASE_URL
         value: "https://uvdtorvdcphslzgraktm.supabase.co"
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2ZHRvcnZkY3Boc2x6Z3Jha3RtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxODM2NTQsImV4cCI6MjA5ODc1OTY1NH0.goMubVZCj6dpvF1GLagXbXkEhlOu5C58Q4JcAS0siVc"
+        type: SECRET
       - key: NEXT_PUBLIC_SITE_URL
         value: "${web.PUBLIC_URL}"
